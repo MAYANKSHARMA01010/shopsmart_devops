@@ -20,5 +20,5 @@ test('can navigate to products page', async ({ page }) => {
   await page.getByRole('link', { name: /Browse Products/i }).click();
 
   await expect(page).toHaveURL(/.*products/);
-  await expect(page.getByRole('heading', { name: /Products/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible();
 });

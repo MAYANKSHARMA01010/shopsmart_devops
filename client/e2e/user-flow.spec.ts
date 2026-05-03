@@ -8,8 +8,11 @@ test.describe('ShopSmart End-to-End User Flow', () => {
     // Check if hero title is visible
     await expect(page.locator('h1', { hasText: 'ShopSmart' })).toBeVisible();
 
-    // Check backend health indicator is working
-    await expect(page.locator('text=ShopSmart Backend is running')).toBeVisible({ timeout: 10000 });
+    // Check backend health indicator is working (retry since backend might take a few seconds to boot)
+    await expect(async () => {
+      await page.reload();
+      await expect(page.locator('text=ShopSmart Backend is running')).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15000 });
 
     // 2. Navigate to Products
     await page.click('text=Products');
