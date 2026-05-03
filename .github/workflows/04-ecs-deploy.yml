@@ -1,10 +1,7 @@
 name: Phase 4 - ECS Deployment
 
 on:
-  workflow_run:
-    workflows: ["Phase 3 - Container Build and Push"]
-    types:
-      - completed
+  workflow_call:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -15,7 +12,6 @@ jobs:
   deploy-to-ecs:
     name: Deploy to ECS Fargate
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout repository
@@ -44,8 +40,7 @@ jobs:
       #   with:
       #     task-definition: task-definition.json
       #     container-name: shopsmart-server
-      #     # In workflow_run, github.sha refers to the trigger workflow's commit
-      #     image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:${{ github.event.workflow_run.head_sha || github.sha }}
+      #     image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:${{ github.sha }}
 
       # - name: Deploy Amazon ECS task definition
       #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1

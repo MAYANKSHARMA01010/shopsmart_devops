@@ -1,10 +1,7 @@
 name: Phase 3 - Container Build and Push
 
 on:
-  workflow_run:
-    workflows: ["Phase 2 - Infrastructure Provisioning"]
-    types:
-      - completed
+  workflow_call:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -15,7 +12,6 @@ jobs:
   build-and-push:
     name: Build & Push to ECR
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
       - name: Checkout repository
@@ -36,8 +32,7 @@ jobs:
       - name: Build and Push Server Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # In workflow_run, github.sha refers to the trigger workflow's commit
-          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:$IMAGE_TAG ./server
           docker push $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:$IMAGE_TAG
@@ -47,7 +42,7 @@ jobs:
       - name: Build and Push Client Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:$IMAGE_TAG ./client
           docker push $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:$IMAGE_TAG
