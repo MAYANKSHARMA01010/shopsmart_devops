@@ -14,4 +14,6 @@ RUN npx prisma generate
 # ✅ Then copy rest of code
 COPY . .
 
+EXPOSE 5001
+
 CMD ["npm", "run", "dev"]
