@@ -7,8 +7,12 @@ import redis from '../src/utils/redis';
 describe('ShopSmart Backend API', () => {
   
   after(async () => {
-    await prisma.$disconnect();
-    await redis.quit();
+    try {
+      await prisma.$disconnect();
+      await redis.quit();
+    } catch (e) {
+      console.warn('Cleanup error:', e);
+    }
   });
 
   describe('GET /api/health', () => {
