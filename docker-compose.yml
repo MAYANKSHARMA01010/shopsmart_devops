@@ -41,15 +41,17 @@ services:
     ports:
       - "5001:5001"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@db:5432/shopsmart}
+      REDIS_SERVER_URL: redis://redis:6379
       REDIS_LOCAL_URL: redis://redis:6379
       NODE_ENV: production
-      FRONTEND_LOCAL_URL: http://${EC2_HOST}:3000
+      FRONTEND_LOCAL_URL: http://${EC2_HOST:-localhost}:3000
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    command: sh -c "npx prisma db push && pnpm start"
     networks:
       - shopsmart-net
 
@@ -57,11 +59,14 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://backend:5001
     restart: always
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_LOCAL_BACKEND_URL: http://${EC2_HOST}:5001/api
+      NEXT_PUBLIC_API_URL: http://backend:5001
+      NEXT_PUBLIC_LOCAL_BACKEND_URL: http://${EC2_HOST:-localhost}:5001/api
       NODE_ENV: production
     depends_on:
       - backend

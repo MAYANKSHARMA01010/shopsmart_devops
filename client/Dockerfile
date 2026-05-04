@@ -14,8 +14,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 RUN npm install -g pnpm
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:5001}
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
+RUN mkdir -p public
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
