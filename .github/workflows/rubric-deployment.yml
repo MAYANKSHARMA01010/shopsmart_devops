@@ -23,6 +23,19 @@ jobs:
         image: redis:7-alpine
         ports:
           - 6379:6379
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: shopsmart_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
@@ -39,7 +52,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/shopsmart_test
         run: |
-          cd server && pnpm test
+          cd server && pnpm prisma db push && pnpm test
           cd ../client && pnpm test
 
   # ==========================================
