@@ -1,36 +1,43 @@
-name: CI/CD Pipeline
+name: ShopSmart Modular Pipeline
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
-permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  phase-1-testing:
-    name: Phase 1 - Testing
+  # PHASE 1: Testing & QA
+  phase-1-qa:
+    name: Phase 1 - QA
     uses: ./.github/workflows/01-test.yml
     secrets: inherit
 
-  phase-2-infrastructure:
-    name: Phase 2 - Infrastructure Provisioning
-    needs: phase-1-testing
-    if: github.ref == 'refs/heads/main'
+  # PHASE 2: Infrastructure
+  phase-2-infra:
+    name: Phase 2 - Infrastructure
+    needs: phase-1-qa
+    if: success()
     uses: ./.github/workflows/02-terraform.yml
     secrets: inherit
 
-  phase-3-docker-build:
-    name: Phase 3 - Container Build and Push
-    needs: phase-2-infrastructure
-    if: github.ref == 'refs/heads/main'
+  # PHASE 3: Build & Push
+  phase-3-build:
+    name: Phase 3 - Container Build
+    needs: phase-2-infra
+    if: success()
     uses: ./.github/workflows/03-docker-build-push.yml
     secrets: inherit
 
-  phase-4-ecs-deploy:
-    name: Phase 4 - ECS Deployment
-    needs: phase-3-docker-build
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/04-ecs-deploy.yml
+  # PHASE 4: Deployment
+  phase-4-deploy:
+    name: Phase 4 - Deployment
+    needs: phase-3-build
+    if: success() && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/04-deploy.yml
     secrets: inherit

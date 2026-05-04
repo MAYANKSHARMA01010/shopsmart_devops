@@ -1,50 +1,31 @@
-name: Phase 3 - Container Build and Push
+name: Phase 3 - Container Build & Push
 
 on:
   workflow_call:
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
-  ECR_SERVER_REPOSITORY: shopsmart-server
-  ECR_CLIENT_REPOSITORY: shopsmart-client
-
 jobs:
-  build-and-push:
-    name: Build & Push to ECR
+  build:
+    name: Build & Push Images
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push Server
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest
 
-      - name: Build and Push Server Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:$IMAGE_TAG ./server
-          docker push $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:latest
-          docker push $ECR_REGISTRY/${{ env.ECR_SERVER_REPOSITORY }}:latest
-
-      - name: Build and Push Client Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:$IMAGE_TAG ./client
-          docker push $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:latest
-          docker push $ECR_REGISTRY/${{ env.ECR_CLIENT_REPOSITORY }}:latest
+      - name: Build and push Client
+        uses: docker/build-push-action@v5
+        with:
+          context: ./client
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-client:latest
