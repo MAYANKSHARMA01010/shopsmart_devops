@@ -1,0 +1,76 @@
+name: "Masterclass: End-to-End EC2 Deployment"
+
+# This workflow demonstrates the full range of DevOps skills learned:
+# 1. CI/CD Pipeline Orchestration
+# 2. Infrastructure-as-Code (Terraform)
+# 3. Containerization (Docker)
+# 4. Secure Remote Orchestration (SSH/SCP)
+# 5. Production Reliability (Healthchecks & Pruning)
+
+on:
+  workflow_dispatch: # Allows manual trigger for demonstration
+
+jobs:
+  # STEP 1: VERIFY
+  verify:
+    name: Code & Infra Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with: { version: 10 }
+      - name: Code Quality (Lint)
+        run: |
+          cd server && pnpm install --no-frozen-lockfile && pnpm lint
+          cd ../client && pnpm install --no-frozen-lockfile && pnpm lint
+      - name: Infrastructure Validation
+        run: cd terraform && terraform init -backend=false && terraform validate
+      - name: Run Unit Tests
+        run: |
+          cd server && pnpm test
+          cd ../client && pnpm test
+
+  # STEP 2: PACKAGE
+  package:
+    name: Containerize
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Build & Push
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest ./server
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest
+
+  # STEP 3: SHIP
+  deploy:
+    name: EC2 Deployment
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync Config
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/shopsmart/"
+      - name: Execute
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/shopsmart
+            sudo docker compose pull
+            sudo docker compose up -d
+            sudo docker image prune -f
+            echo "Deployment successful on host: ${{ secrets.EC2_HOST }}"

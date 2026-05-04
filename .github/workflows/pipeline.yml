@@ -1,4 +1,4 @@
-name: ShopSmart Modular Pipeline
+name: "ShopSmart Ultimate Modular Pipeline"
 
 on:
   push:
@@ -8,36 +8,34 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: production_pipeline
   cancel-in-progress: true
 
 jobs:
-  # PHASE 1: Testing & QA
+  # Phase 1: Test then Terraform then Docker then Deploy
+  
   phase-1-qa:
-    name: Phase 1 - QA
+    name: "Phase 1: Testing & QA"
     uses: ./.github/workflows/01-test.yml
     secrets: inherit
 
-  # PHASE 2: Infrastructure
   phase-2-infra:
-    name: Phase 2 - Infrastructure
+    name: "Phase 2: Infrastructure"
     needs: phase-1-qa
     if: success()
     uses: ./.github/workflows/02-terraform.yml
     secrets: inherit
 
-  # PHASE 3: Build & Push
-  phase-3-build:
-    name: Phase 3 - Container Build
+  phase-3-docker:
+    name: "Phase 3: Docker Build"
     needs: phase-2-infra
     if: success()
     uses: ./.github/workflows/03-docker-build-push.yml
     secrets: inherit
 
-  # PHASE 4: Deployment
   phase-4-deploy:
-    name: Phase 4 - Deployment
-    needs: phase-3-build
+    name: "Phase 4: EC2 Deployment"
+    needs: phase-3-docker
     if: success() && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/04-deploy.yml
     secrets: inherit

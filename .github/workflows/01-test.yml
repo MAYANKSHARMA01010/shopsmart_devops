@@ -1,35 +1,44 @@
-name: Phase 1 - Testing & QA
+name: "Phase 1: Quality Assurance"
 
 on:
   workflow_call:
 
 jobs:
-  validate:
-    name: Lint & Audit
+  qa:
+    name: "Code Audit & Testing"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install pnpm
+      - name: "Install pnpm"
         uses: pnpm/action-setup@v2
         with:
           version: 10
           
-      - name: Set up Node.js
+      - name: "Set up Node.js Environment"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Backend QA
+      - name: "Audit & Lint Backend"
         working-directory: ./server
         run: |
           pnpm install --no-frozen-lockfile
           pnpm lint
-          pnpm audit --audit-level high || echo "Security warnings found"
+          pnpm audit --audit-level high || echo "Vulnerabilities found - review suggested"
 
-      - name: Frontend QA
+      - name: "Audit & Lint Frontend"
         working-directory: ./client
         run: |
           pnpm install --no-frozen-lockfile
           pnpm lint
+          pnpm audit --audit-level high || echo "Vulnerabilities found - review suggested"
+          
+      - name: "Run Backend Tests"
+        working-directory: ./server
+        run: pnpm test
+
+      - name: "Run Frontend Tests"
+        working-directory: ./client
+        run: pnpm test
