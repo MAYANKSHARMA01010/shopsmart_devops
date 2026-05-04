@@ -117,9 +117,12 @@ jobs:
             exit 1
           fi
           
+          # Sanitize the secret (remove whitespace/newlines)
+          CLEAN_SG_ID=$(echo "${{ secrets.EC2_SECURITY_GROUP_ID }}" | xargs)
+          
           # No more masking errors—let it fail loudly if unauthorized
           aws ec2 authorize-security-group-ingress \
-            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
+            --group-id "$CLEAN_SG_ID" \
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32
@@ -158,8 +161,9 @@ jobs:
       - name: Revoke Runner IP
         if: always()
         run: |
+          CLEAN_SG_ID=$(echo "${{ secrets.EC2_SECURITY_GROUP_ID }}" | xargs)
           aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
+            --group-id "$CLEAN_SG_ID" \
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
