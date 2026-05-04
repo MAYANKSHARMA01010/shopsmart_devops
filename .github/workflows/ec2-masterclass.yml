@@ -83,10 +83,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Build & Push
+      - name: Build & Push Images
         run: |
+          # Build and push Server
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest ./server
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest
+          
+          # Build and push Client
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-client:latest ./client
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-client:latest
 
   # STEP 3: SHIP
   deploy:
@@ -95,6 +100,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+      - name: Get Runner IP
+        id: ip
+        run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+      - name: Whitelist Runner IP
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
       - name: Sync Config
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -111,17 +133,29 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/shopsmart
+            # Create dummy directories to satisfy docker-compose build context requirements
+            mkdir -p server client
             export EC2_HOST=${{ secrets.EC2_HOST }}
             export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             sudo -E docker compose pull
-            sudo -E docker compose up -d
+            sudo -E docker compose up -d --no-build
             sudo docker image prune -f
             echo "Deployment successful on host: ${{ secrets.EC2_HOST }}"
+      - name: Revoke Runner IP
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
 
   cleanup:
     name: Safety Cleanup
     needs: [verify, package, deploy]
     if: failure()
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials

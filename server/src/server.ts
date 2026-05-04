@@ -17,6 +17,7 @@ const PORT = process.env.SERVER_PORT || 5001;
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.get('/favicon.ico', (req: Request, res: Response) => { res.status(204).end(); });
 
 const healthCheckLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute

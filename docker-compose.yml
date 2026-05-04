@@ -34,9 +34,8 @@ services:
       - shopsmart-net
 
   backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+    build: ./server
+    image: ${DOCKERHUB_USERNAME:-mayanksharma01010}/shopsmart-server:latest
     restart: always
     ports:
       - "5001:5001"
@@ -58,9 +57,9 @@ services:
   frontend:
     build:
       context: ./client
-      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://backend:5001
+    image: ${DOCKERHUB_USERNAME:-mayanksharma01010}/shopsmart-client:latest
     restart: always
     ports:
       - "3000:3000"
