@@ -112,31 +112,17 @@ jobs:
         run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
       - name: Whitelist Runner IP
         run: |
-          # 1. Discover SG ID if not provided as a secret
-          SG_ID="${{ secrets.EC2_SECURITY_GROUP_ID }}"
-          if [ -z "$SG_ID" ]; then
-            echo "🔍 Attempting to discover Security Group for ${{ secrets.EC2_HOST }}..."
-            SG_ID=$(aws ec2 describe-instances \
-              --filters "Name=ip-address,Values=${{ secrets.EC2_HOST }}" \
-              --query "Reservations[].Instances[].SecurityGroups[0].GroupId" \
-              --output text)
-          fi
-          
-          if [ -z "$SG_ID" ] || [ "$SG_ID" == "None" ]; then
-            echo "❌ CRITICAL: Could not find Security Group ID."
-            echo "Please manually add the 'EC2_SECURITY_GROUP_ID' secret to your repository."
+          if [ -z "${{ secrets.EC2_SECURITY_GROUP_ID }}" ]; then
+            echo "❌ ERROR: EC2_SECURITY_GROUP_ID secret is missing!"
+            echo "Discovery is forbidden in this lab. You MUST manually add the SG ID to GitHub Secrets."
             exit 1
           fi
           
-          echo "✅ Using Security Group: $SG_ID"
-          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
-          
-          # 2. Authorize Ingress
           aws ec2 authorize-security-group-ingress \
-            --group-id $SG_ID \
+            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || echo "⚠️ Ingress rule might already exist"
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || echo "⚠️ Rule might already exist"
           
           echo "Waiting for propagation..."
           sleep 10
@@ -173,7 +159,7 @@ jobs:
         if: always()
         run: |
           aws ec2 revoke-security-group-ingress \
-            --group-id $SG_ID \
+            --group-id ${{ secrets.EC2_SECURITY_GROUP_ID }} \
             --protocol tcp \
             --port 22 \
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
@@ -185,16 +171,5 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
-      - name: Terminate Ghost EC2
-        run: |
-          IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Ubuntu-CLI-Auto" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text)
-          if [ -n "$IDS" ]; then
-            aws ec2 terminate-instances --instance-ids $IDS
-          fi
+      - name: Cleanup Note
+        run: echo "Cleanup discovery is forbidden in this lab environment. Manual cleanup required if instances are orphaned."
