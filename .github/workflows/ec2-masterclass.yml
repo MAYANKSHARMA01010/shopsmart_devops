@@ -110,25 +110,6 @@ jobs:
       - name: Get Runner IP
         id: ip
         run: echo "ipv4=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
-      - name: Whitelist Runner IP
-        run: |
-          if [ -z "${{ secrets.EC2_SECURITY_GROUP_ID }}" ]; then
-            echo "❌ ERROR: EC2_SECURITY_GROUP_ID secret is missing!"
-            exit 1
-          fi
-          
-          # Sanitize the secret (remove whitespace/newlines)
-          CLEAN_SG_ID=$(echo "${{ secrets.EC2_SECURITY_GROUP_ID }}" | xargs)
-          
-          # No more masking errors—let it fail loudly if unauthorized
-          aws ec2 authorize-security-group-ingress \
-            --group-id "$CLEAN_SG_ID" \
-            --protocol tcp \
-            --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32
-          
-          echo "Waiting for propagation..."
-          sleep 15
       - name: Verify SSH Port
         run: |
           echo "Testing connection to ${{ secrets.EC2_HOST }}:22..."
@@ -158,15 +139,6 @@ jobs:
             sudo -E docker compose up -d --no-build
             sudo docker image prune -f
             echo "Deployment successful on host: ${{ secrets.EC2_HOST }}"
-      - name: Revoke Runner IP
-        if: always()
-        run: |
-          CLEAN_SG_ID=$(echo "${{ secrets.EC2_SECURITY_GROUP_ID }}" | xargs)
-          aws ec2 revoke-security-group-ingress \
-            --group-id "$CLEAN_SG_ID" \
-            --protocol tcp \
-            --port 22 \
-            --cidr ${{ steps.ip.outputs.ipv4 }}/32 || true
 
   cleanup:
     name: Safety Cleanup
