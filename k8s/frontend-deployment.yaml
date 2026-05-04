@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: shopsmart-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shopsmart-frontend
+  template:
+    metadata:
+      labels:
+        app: shopsmart-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/shopsmart-client:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "http://backend-service.shopsmart-prod.svc.cluster.local:5001"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: shopsmart-prod
+spec:
+  type: LoadBalancer
+  selector:
+    app: shopsmart-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
