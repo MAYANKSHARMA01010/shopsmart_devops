@@ -1,7 +1,6 @@
-# CloudWatch Log Group for ECS
-resource "aws_cloudwatch_log_group" "ecs_logs" {
-  name              = "/ecs/${var.project_name}"
-  retention_in_days = 14
+# CloudWatch Log Group for ECS (Using Data source to prevent ResourceAlreadyExistsException)
+data "aws_cloudwatch_log_group" "ecs_logs" {
+  name = "/ecs/${var.project_name}"
 }
 
 # Backend Task Definition
@@ -28,7 +27,7 @@ resource "aws_ecs_task_definition" "backend" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-group"         = data.aws_cloudwatch_log_group.ecs_logs.name
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "backend"
         }
@@ -76,7 +75,7 @@ resource "aws_ecs_task_definition" "frontend" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-group"         = data.aws_cloudwatch_log_group.ecs_logs.name
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "frontend"
         }
