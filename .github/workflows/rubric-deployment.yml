@@ -78,6 +78,8 @@ jobs:
         run: cd terraform && terraform init
       - name: Terraform Validate
         run: cd terraform && terraform validate
+      - name: Idempotent Cleanup of Orphaned VPCs
+        run: ./scripts/cleanup_orphaned_vpcs.sh
       - name: Terraform Apply
         run: cd terraform && terraform apply -auto-approve
 
