@@ -7,11 +7,11 @@ terraform {
     }
   }
   # Note: In a production environment, you would configure a remote backend here.
-  # backend "s3" {
-  #   bucket = "your-terraform-state-bucket"
-  #   key    = "shopsmart/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+  backend "s3" {
+    bucket = "shopsmart-terraform-state-mayank" # Ensure you create this bucket!
+    key    = "shopsmart/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" {

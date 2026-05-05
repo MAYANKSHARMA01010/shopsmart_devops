@@ -78,8 +78,6 @@ jobs:
         run: cd terraform && terraform init
       - name: Terraform Validate
         run: cd terraform && terraform validate
-      - name: Idempotent Cleanup of Orphaned VPCs
-        run: ./scripts/cleanup_orphaned_vpcs.sh
       - name: Terraform Apply
         run: cd terraform && terraform apply -auto-approve
 
@@ -161,3 +159,16 @@ jobs:
         run: |
           echo "Frontend LoadBalancer Endpoint:"
           kubectl get services frontend-service -n shopsmart-prod
+      - name: Debug Deployment Failure
+        if: failure()
+        run: |
+          echo "=== Namespace Status ==="
+          kubectl get ns
+          echo "=== Pod Status ==="
+          kubectl get pods -n shopsmart-prod
+          echo "=== Pod Details (Backend) ==="
+          kubectl describe pods -l app=shopsmart-backend -n shopsmart-prod
+          echo "=== Node Status ==="
+          kubectl get nodes
+          echo "=== Cluster Events ==="
+          kubectl get events -n shopsmart-prod --sort-by='.lastTimestamp'
