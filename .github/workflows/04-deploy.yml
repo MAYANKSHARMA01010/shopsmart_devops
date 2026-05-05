@@ -2,6 +2,7 @@ name: "Phase 4: EC2 Orchestration"
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   deploy:

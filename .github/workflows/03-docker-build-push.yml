@@ -2,6 +2,7 @@ name: "Phase 3: Containerization"
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   build:

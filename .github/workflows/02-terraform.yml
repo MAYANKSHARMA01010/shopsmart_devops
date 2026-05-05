@@ -2,6 +2,7 @@ name: "Phase 2: Infrastructure Validation"
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   infra:

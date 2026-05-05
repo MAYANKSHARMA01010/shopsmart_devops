@@ -2,6 +2,7 @@ name: "Phase 1: Quality Assurance"
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   qa:
