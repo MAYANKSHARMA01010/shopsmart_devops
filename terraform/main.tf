@@ -39,12 +39,32 @@ resource "aws_s3_bucket_public_access_block" "shopsmart_artifacts_public_access_
 # 2. ECR Repositories for Docker Images
 # ==========================================
 
-data "aws_ecr_repository" "shopsmart_server" {
-  name = "${var.project_name}-server"
+resource "aws_ecr_repository" "shopsmart_server" {
+  name                 = "${var.project_name}-server"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Project = var.project_name
+    Service = "backend"
+  }
 }
 
-data "aws_ecr_repository" "shopsmart_client" {
-  name = "${var.project_name}-client"
+resource "aws_ecr_repository" "shopsmart_client" {
+  name                 = "${var.project_name}-client"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Project = var.project_name
+    Service = "frontend"
+  }
 }
 
 # ==========================================

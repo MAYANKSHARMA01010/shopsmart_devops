@@ -1,6 +1,11 @@
-# CloudWatch Log Group for ECS (data source - already exists)
-data "aws_cloudwatch_log_group" "ecs_logs" {
-  name = "/ecs/${var.project_name}"
+# CloudWatch Log Group for ECS task logs
+resource "aws_cloudwatch_log_group" "ecs_logs" {
+  name              = "/ecs/${var.project_name}"
+  retention_in_days = 7
+
+  tags = {
+    Project = var.project_name
+  }
 }
 
 # Backend Task Definition
@@ -16,7 +21,7 @@ resource "aws_ecs_task_definition" "backend" {
   container_definitions = jsonencode([
     {
       name      = "backend"
-      image     = "${data.aws_ecr_repository.shopsmart_server.repository_url}:latest"
+      image     = "${aws_ecr_repository.shopsmart_server.repository_url}:latest"
       essential = true
       portMappings = [
         {
@@ -27,7 +32,7 @@ resource "aws_ecs_task_definition" "backend" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = data.aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "backend"
         }
@@ -64,7 +69,7 @@ resource "aws_ecs_task_definition" "frontend" {
   container_definitions = jsonencode([
     {
       name      = "frontend"
-      image     = "${data.aws_ecr_repository.shopsmart_client.repository_url}:latest"
+      image     = "${aws_ecr_repository.shopsmart_client.repository_url}:latest"
       essential = true
       portMappings = [
         {
@@ -75,7 +80,7 @@ resource "aws_ecs_task_definition" "frontend" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = data.aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "frontend"
         }

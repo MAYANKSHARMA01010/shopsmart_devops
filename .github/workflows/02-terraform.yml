@@ -22,11 +22,20 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
-      - name: "Terraform Plan & Apply"
+      - name: "Terraform Init"
         working-directory: ./terraform
-        run: |
-          terraform init
-          terraform plan -out=tfplan
-          terraform apply -auto-approve tfplan
+        run: terraform init
+
+      - name: "Terraform Validate"
+        working-directory: ./terraform
+        run: terraform validate
+
+      - name: "Terraform Plan"
+        working-directory: ./terraform
+        run: terraform plan -out=tfplan
+
+      - name: "Terraform Apply"
+        working-directory: ./terraform
+        run: terraform apply -auto-approve tfplan

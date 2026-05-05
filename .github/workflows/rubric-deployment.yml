@@ -1,10 +1,14 @@
 name: "Rubric: EKS Production Deployment"
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
   PROJECT_NAME: shopsmart
 
 jobs:
@@ -51,6 +55,16 @@ jobs:
           cd server && pnpm prisma db push && pnpm test
           cd ../client && pnpm test
 
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shopsmart-test-reports
+          path: |
+            server/coverage/
+            client/coverage/
+          if-no-files-found: warn
+
   # ==========================================
   # PHASE 2: INFRASTRUCTURE (TERRAFORM)
   # ==========================================
@@ -77,34 +91,42 @@ jobs:
       - name: Terraform Import Existing Resources
         run: |
           cd terraform
+          set +e  # imports are best-effort; missing resources will simply create
 
-          # Correct import ID format for aws_ecs_cluster is just the cluster name
-          echo "-> Checking ECS cluster state..."
-          if ! terraform state show aws_ecs_cluster.shopsmart_cluster > /dev/null 2>&1; then
-            echo "   Not in state. Importing..."
-            terraform import aws_ecs_cluster.shopsmart_cluster shopsmart-cluster || true
-          else
-            echo "   Already in state. Skipping."
-          fi
+          import_if_missing() {
+            local addr="$1"; local id="$2"
+            echo "-> $addr"
+            if terraform state show "$addr" > /dev/null 2>&1; then
+              echo "   already in state"
+            else
+              # Only import if AWS object actually exists
+              echo "   not in state — attempting import (will be ignored if absent)"
+              terraform import "$addr" "$id" 2>&1 | tail -5 || true
+            fi
+          }
 
-          # Correct import ID format for aws_ecs_service is <cluster_name>/<service_name>
-          echo "-> Checking ECS backend service state..."
-          if ! terraform state show aws_ecs_service.backend > /dev/null 2>&1; then
-            echo "   Not in state. Importing..."
-            terraform import aws_ecs_service.backend shopsmart-cluster/shopsmart-backend-service || true
-          else
-            echo "   Already in state. Skipping."
-          fi
+          # ECR repos
+          import_if_missing aws_ecr_repository.shopsmart_server shopsmart-server
+          import_if_missing aws_ecr_repository.shopsmart_client shopsmart-client
 
-          echo "-> Checking ECS frontend service state..."
-          if ! terraform state show aws_ecs_service.frontend > /dev/null 2>&1; then
-            echo "   Not in state. Importing..."
-            terraform import aws_ecs_service.frontend shopsmart-cluster/shopsmart-frontend-service || true
-          else
-            echo "   Already in state. Skipping."
-          fi
+          # CloudWatch log group (id is the log group name, leading slash kept)
+          import_if_missing aws_cloudwatch_log_group.ecs_logs /ecs/shopsmart
+
+          # ECS cluster + services
+          import_if_missing aws_ecs_cluster.shopsmart_cluster shopsmart-cluster
+          import_if_missing aws_ecs_service.backend  shopsmart-cluster/shopsmart-backend-service
+          import_if_missing aws_ecs_service.frontend shopsmart-cluster/shopsmart-frontend-service
+
+          # EKS cluster + node group (node group ID format: <cluster>:<nodegroup>)
+          import_if_missing aws_eks_cluster.shopsmart_eks shopsmart-eks-cluster
+          import_if_missing aws_eks_node_group.shopsmart_nodes shopsmart-eks-cluster:shopsmart-node-group
+
+          set -e
+      - name: Terraform Plan
+        run: cd terraform && terraform plan -out=tfplan
+
       - name: Terraform Apply
-        run: cd terraform && terraform apply -auto-approve
+        run: cd terraform && terraform apply -auto-approve tfplan
 
   # ==========================================
   # PHASE 3: CONTAINER BUILD & ECR PUSH
@@ -145,10 +167,64 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   # ==========================================
-  # PHASE 4: KUBERNETES DEPLOYMENT (EKS)
+  # PHASE 4a: ECS FARGATE DEPLOYMENT
+  # ==========================================
+  deploy-ecs:
+    name: Phase 4a - ECS Fargate Deployment
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    env:
+      CLUSTER: shopsmart-cluster
+      BACKEND_SERVICE: shopsmart-backend-service
+      FRONTEND_SERVICE: shopsmart-frontend-service
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment (backend + frontend)
+        run: |
+          aws ecs update-service --cluster "$CLUSTER" --service "$BACKEND_SERVICE"  --force-new-deployment --region "$AWS_REGION" > /dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service "$FRONTEND_SERVICE" --force-new-deployment --region "$AWS_REGION" > /dev/null
+          echo "ECS rollouts triggered."
+
+      - name: Wait for services to stabilise
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION"
+
+      - name: Verify ECS services healthy
+        run: |
+          aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[].{name:serviceName,status:status,desired:desiredCount,running:runningCount,pending:pendingCount}' \
+            --output table
+
+          UNHEALTHY=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[?runningCount<desiredCount].serviceName' \
+            --output text)
+          if [ -n "$UNHEALTHY" ]; then
+            echo "::error::ECS services not fully running: $UNHEALTHY"
+            exit 1
+          fi
+
+  # ==========================================
+  # PHASE 4b: KUBERNETES DEPLOYMENT (EKS)
   # ==========================================
   deploy-eks:
-    name: Phase 4 - Kubernetes Deployment (EKS)
+    name: Phase 4b - Kubernetes Deployment (EKS)
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -163,19 +239,21 @@ jobs:
       - name: Update KubeConfig
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.PROJECT_NAME }}-eks-cluster
-      - name: Inject AWS Account ID into Manifests
+      - name: Render Manifests with Account ID
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          sed -i "s/<YOUR_AWS_ACCOUNT_ID>/$ACCOUNT_ID/g" k8s/backend-deployment.yaml
-          sed -i "s/<YOUR_AWS_ACCOUNT_ID>/$ACCOUNT_ID/g" k8s/frontend-deployment.yaml
+          mkdir -p k8s-rendered
+          for f in k8s/backend-deployment.yaml k8s/frontend-deployment.yaml; do
+            sed "s/<YOUR_AWS_ACCOUNT_ID>/$ACCOUNT_ID/g" "$f" > "k8s-rendered/$(basename "$f")"
+          done
       - name: Deploy Kubernetes Manifests
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           kubectl apply -f k8s/namespace.yaml
           kubectl create secret generic shopsmart-secrets --from-literal=DATABASE_URL="$DATABASE_URL" -n shopsmart-prod --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s-rendered/backend-deployment.yaml
+          kubectl apply -f k8s-rendered/frontend-deployment.yaml
       - name: Ensure Deployment Stability
         run: |
           kubectl rollout status deployment/backend-deployment -n shopsmart-prod

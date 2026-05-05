@@ -110,3 +110,6 @@ docs-assembler-config.json
 *.tfstate.*
 !terraform/vars.tfvars
 !terraform/vars.tfvars.lock
+
+# --- Rendered K8s manifests (CI generates these) ---
+k8s-rendered/

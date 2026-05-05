@@ -1,7 +1,7 @@
 name: "ShopSmart Ultimate Modular Pipeline"
 
 on:
-  workflow_dispatch: # Allows manual trigger from Actions tab
+  workflow_dispatch: # Manual trigger only — rubric-deployment.yml is the auto-fire pipeline
 
 concurrency:
   group: production_pipeline
@@ -49,7 +49,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
       - name: Terminate Ghost Resources
         run: |

@@ -1,47 +1,73 @@
-name: "Phase 4: EC2 Orchestration"
+name: "Phase 4: ECS Fargate Deployment"
 
 on:
   workflow_call:
   workflow_dispatch:
 
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  CLUSTER: shopsmart-cluster
+  BACKEND_SERVICE: shopsmart-backend-service
+  FRONTEND_SERVICE: shopsmart-frontend-service
+
 jobs:
   deploy:
-    name: "Remote Rollout"
+    name: "Deploy to ECS Fargate"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Transfer Runtime Config (SCP)"
-        uses: appleboy/scp-action@v0.1.7
+      - name: "Configure AWS Credentials"
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "~/shopsmart/"
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: "Execute Deployment (SSH)"
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/shopsmart
-            echo "Starting Zero-Downtime Rollout..."
-            
-            # Export environment variables for Docker Compose
-            export EC2_HOST=${{ secrets.EC2_HOST }}
-            export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+      - name: "Force new deployment (backend)"
+        run: |
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$BACKEND_SERVICE" \
+            --force-new-deployment \
+            --region "$AWS_REGION" > /dev/null
+          echo "Backend deployment triggered."
 
-            # 1. Pull latest images from Docker Hub
-            sudo -E docker compose pull
-            
-            # 2. Restart services (Leveraging Healthchecks from docker-compose.yml)
-            sudo -E docker compose up -d
-            
-            # 3. Clean up dangling images to save space
-            sudo docker image prune -f
-            
-            echo "Deployment Complete! Service is now online."
-            sudo docker compose ps
+      - name: "Force new deployment (frontend)"
+        run: |
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$FRONTEND_SERVICE" \
+            --force-new-deployment \
+            --region "$AWS_REGION" > /dev/null
+          echo "Frontend deployment triggered."
+
+      - name: "Wait for services to stabilise"
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION"
+          echo "Services reached steady state."
+
+      - name: "Verify services are running"
+        run: |
+          aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[].{name:serviceName,status:status,desired:desiredCount,running:runningCount,pending:pendingCount}' \
+            --output table
+
+          UNHEALTHY=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$BACKEND_SERVICE" "$FRONTEND_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[?runningCount<desiredCount].serviceName' \
+            --output text)
+          if [ -n "$UNHEALTHY" ]; then
+            echo "::error::Services not fully running: $UNHEALTHY"
+            exit 1
+          fi
+          echo "All ECS services healthy."
