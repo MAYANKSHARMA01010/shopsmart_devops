@@ -78,6 +78,35 @@ jobs:
         run: cd terraform && terraform init
       - name: Terraform Validate
         run: cd terraform && terraform validate
+      - name: Terraform Import Existing Resources
+        run: |
+          cd terraform
+
+          # Correct import ID format for aws_ecs_cluster is just the cluster name
+          echo "-> Checking ECS cluster state..."
+          if ! terraform state show aws_ecs_cluster.shopsmart_cluster > /dev/null 2>&1; then
+            echo "   Not in state. Importing..."
+            terraform import aws_ecs_cluster.shopsmart_cluster shopsmart-cluster || true
+          else
+            echo "   Already in state. Skipping."
+          fi
+
+          # Correct import ID format for aws_ecs_service is <cluster_name>/<service_name>
+          echo "-> Checking ECS backend service state..."
+          if ! terraform state show aws_ecs_service.backend > /dev/null 2>&1; then
+            echo "   Not in state. Importing..."
+            terraform import aws_ecs_service.backend shopsmart-cluster/shopsmart-backend-service || true
+          else
+            echo "   Already in state. Skipping."
+          fi
+
+          echo "-> Checking ECS frontend service state..."
+          if ! terraform state show aws_ecs_service.frontend > /dev/null 2>&1; then
+            echo "   Not in state. Importing..."
+            terraform import aws_ecs_service.frontend shopsmart-cluster/shopsmart-frontend-service || true
+          else
+            echo "   Already in state. Skipping."
+          fi
       - name: Terraform Apply
         run: cd terraform && terraform apply -auto-approve
 

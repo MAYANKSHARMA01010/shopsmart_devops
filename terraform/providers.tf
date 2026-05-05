@@ -6,7 +6,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-  # Note: In a production environment, you would configure a remote backend here.
   backend "s3" {
     bucket = "shopsmart-terraform-state-mayank" # Ensure you create this bucket!
     key    = "shopsmart/terraform.tfstate"
