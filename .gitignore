@@ -102,3 +102,11 @@ pub/
 tsmaps/
 tsmall/
 docs-assembler-config.json
+
+# terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+!terraform/vars.tfvars
+!terraform/vars.tfvars.lock
