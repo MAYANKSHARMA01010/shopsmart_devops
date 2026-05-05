@@ -81,3 +81,19 @@ for VPC_ID in $VPC_IDS; do
 done
 
 echo "🎉 All orphaned VPCs have been removed. Your AWS limits are cleared."
+
+echo "🧹 Cleaning up existing ECS Services to ensure idempotency..."
+CLUSTER_NAME="shopsmart-cluster"
+SERVICES=("shopsmart-backend-service" "shopsmart-frontend-service")
+
+for SERVICE in "${SERVICES[@]}"; do
+  echo "  -> Checking ECS Service: $SERVICE"
+  # Check if service exists
+  SERVICE_EXISTS=$(aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE --region $REGION --query "services[?status!='INACTIVE'].serviceName" --output text || true)
+  if [ -n "$SERVICE_EXISTS" ] && [ "$SERVICE_EXISTS" != "None" ]; then
+    echo "  -> Force deleting ECS Service: $SERVICE"
+    aws ecs delete-service --cluster $CLUSTER_NAME --service $SERVICE --force --region $REGION || true
+  fi
+done
+
+echo "✅ ECS cleanup complete!"
