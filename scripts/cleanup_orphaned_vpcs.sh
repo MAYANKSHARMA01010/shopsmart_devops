@@ -123,5 +123,40 @@ for BUCKET in $BUCKETS; do
   aws s3api wait bucket-not-exists --bucket "$BUCKET" || true
 done
 
-echo "✅ S3 cleanup complete!"
+echo "🧹 Cleaning up existing EKS Cluster and Node Groups..."
+EKS_CLUSTER="shopsmart-eks-cluster"
+NODE_GROUP="shopsmart-node-group"
+
+# 1. Delete Node Group first
+echo "  -> Checking EKS Node Group: $NODE_GROUP"
+if aws eks describe-node-group --cluster-name $EKS_CLUSTER --node-group-name $NODE_GROUP --region $REGION 2>/dev/null; then
+  echo "  -> Deleting EKS Node Group: $NODE_GROUP (This can take 5-10 mins)..."
+  aws eks delete-node-group --cluster-name $EKS_CLUSTER --node-group-name $NODE_GROUP --region $REGION || true
+  aws eks wait node-group-deleted --cluster-name $EKS_CLUSTER --node-group-name $NODE_GROUP --region $REGION || true
+fi
+
+# 2. Delete EKS Cluster
+echo "  -> Checking EKS Cluster: $EKS_CLUSTER"
+if aws eks describe-cluster --name $EKS_CLUSTER --region $REGION 2>/dev/null; then
+  echo "  -> Deleting EKS Cluster: $EKS_CLUSTER (This can take 10-15 mins)..."
+  aws eks delete-cluster --name $EKS_CLUSTER --region $REGION || true
+  aws eks wait cluster-deleted --name $EKS_CLUSTER --region $REGION || true
+fi
+
+echo "✅ EKS cleanup complete!"
+
+echo "☸️ Cleaning up Kubernetes Resources..."
+# Try to delete the namespace if kubeconfig is valid and cluster exists
+if kubectl get ns shopsmart-prod &>/dev/null; then
+  echo "  -> Deleting Kubernetes Namespace: shopsmart-prod (and all pods inside)"
+  kubectl delete ns shopsmart-prod --timeout=60s || true
+fi
+
+echo "📑 Cleaning up CloudWatch Log Groups..."
+LOG_GROUP="/ecs/shopsmart"
+if aws logs describe-log-groups --log-group-name-prefix $LOG_GROUP --region $REGION --query "logGroups[?logGroupName=='$LOG_GROUP'].logGroupName" --output text | grep -q "$LOG_GROUP"; then
+  echo "  -> Deleting Log Group: $LOG_GROUP"
+  aws logs delete-log-group --log-group-name $LOG_GROUP --region $REGION || true
+fi
+
 echo "🚀 Environment is clean and ready for Terraform!"
