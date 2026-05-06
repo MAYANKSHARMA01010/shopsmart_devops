@@ -25,8 +25,10 @@ resource "aws_ecs_task_definition" "backend" {
       essential = true
       portMappings = [
         {
+          name          = "backend-port"
           containerPort = 5001
           hostPort      = 5001
+          protocol      = "tcp"
         }
       ]
       environment = [
@@ -70,6 +72,19 @@ resource "aws_ecs_service" "backend" {
     target_group_arn = aws_lb_target_group.backend_tg.arn
     container_name   = "backend"
     container_port   = 5001
+  }
+
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.shopsmart.arn
+    service {
+      port_name      = "backend-port"
+      discovery_name = "backend"
+      client_alias {
+        port     = 5001
+        dns_name = "backend"
+      }
+    }
   }
 
   depends_on = [aws_lb_listener.http_listener]
@@ -127,6 +142,11 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = aws_lb_target_group.frontend_tg.arn
     container_name   = "frontend"
     container_port   = 3000
+  }
+
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.shopsmart.arn
   }
 
   depends_on = [aws_lb_listener.http_listener]

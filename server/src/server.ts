@@ -29,6 +29,8 @@ const healthCheckLimiter = rateLimit({
 // Health Check
 app.get('/api/health', healthCheckLimiter, async (req: Request, res: Response) => {
   let redisStatus = 'disconnected';
+  let dbStatus = 'disconnected';
+
   try {
     await redis.ping();
     redisStatus = 'connected';
@@ -36,11 +38,21 @@ app.get('/api/health', healthCheckLimiter, async (req: Request, res: Response) =
     redisStatus = 'error';
   }
 
+  try {
+    // Actually test the database connection
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = 'connected';
+  } catch (_err) {
+    dbStatus = 'error';
+  }
+
   res.json({
-    status: 'ok',
-    message: 'ShopSmart Backend is running',
+    status: dbStatus === 'connected' ? 'ok' : 'error',
+    message: 'ShopSmart Backend Health Check',
     timestamp: new Date().toISOString(),
-    database: 'PostgreSQL',
+    database: dbStatus,
     redis: redisStatus,
   });
 });
