@@ -1,3 +1,9 @@
+# Cloud Map Namespace for Service Connect
+resource "aws_service_discovery_http_namespace" "shopsmart" {
+  name        = "shopsmart.local"
+  description = "Service Connect namespace for shopsmart"
+}
+
 # CloudWatch Log Group for ECS task logs
 resource "aws_cloudwatch_log_group" "ecs_logs" {
   name              = "/ecs/${var.project_name}"
