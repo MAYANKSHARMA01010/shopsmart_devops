@@ -1,9 +1,3 @@
-# Cloud Map Namespace for Service Connect
-resource "aws_service_discovery_http_namespace" "shopsmart" {
-  name        = "shopsmart.local"
-  description = "Service Connect namespace for shopsmart"
-}
-
 # CloudWatch Log Group for ECS task logs
 resource "aws_cloudwatch_log_group" "ecs_logs" {
   name              = "/ecs/${var.project_name}"
@@ -31,10 +25,8 @@ resource "aws_ecs_task_definition" "backend" {
       essential = true
       portMappings = [
         {
-          name          = "backend-port"
           containerPort = 5001
           hostPort      = 5001
-          protocol      = "tcp"
         }
       ]
       environment = [
@@ -59,7 +51,10 @@ resource "aws_ecs_task_definition" "backend" {
   ])
 }
 
-# Backend ECS Service
+resource "aws_ecs_cluster" "shopsmart_cluster" {
+  name = "${var.project_name}-cluster"
+}
+
 resource "aws_ecs_service" "backend" {
   name            = "${var.project_name}-backend-service"
   cluster         = aws_ecs_cluster.shopsmart_cluster.id
@@ -78,19 +73,6 @@ resource "aws_ecs_service" "backend" {
     target_group_arn = aws_lb_target_group.backend_tg.arn
     container_name   = "backend"
     container_port   = 5001
-  }
-
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_http_namespace.shopsmart.arn
-    service {
-      port_name      = "backend-port"
-      discovery_name = "backend"
-      client_alias {
-        port     = 5001
-        dns_name = "backend"
-      }
-    }
   }
 
   depends_on = [aws_lb_listener.http_listener]
@@ -129,7 +111,6 @@ resource "aws_ecs_task_definition" "frontend" {
   ])
 }
 
-# Frontend ECS Service
 resource "aws_ecs_service" "frontend" {
   name            = "${var.project_name}-frontend-service"
   cluster         = aws_ecs_cluster.shopsmart_cluster.id
@@ -148,11 +129,6 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = aws_lb_target_group.frontend_tg.arn
     container_name   = "frontend"
     container_port   = 3000
-  }
-
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_http_namespace.shopsmart.arn
   }
 
   depends_on = [aws_lb_listener.http_listener]
