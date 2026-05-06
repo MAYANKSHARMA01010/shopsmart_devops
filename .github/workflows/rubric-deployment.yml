@@ -203,55 +203,55 @@ jobs:
   # ==========================================
   # PHASE 4b: KUBERNETES DEPLOYMENT (EKS)
   # ==========================================
-  deploy-eks:
-    name: Phase 4b - Kubernetes Deployment (EKS)
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Update KubeConfig
-        run: |
-          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ env.PROJECT_NAME }}-eks-cluster
-      - name: Render Manifests with Account ID
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          mkdir -p k8s-rendered
-          for f in k8s/backend-deployment.yaml k8s/frontend-deployment.yaml; do
-            sed "s/<YOUR_AWS_ACCOUNT_ID>/$ACCOUNT_ID/g" "$f" > "k8s-rendered/$(basename "$f")"
-          done
-      - name: Deploy Kubernetes Manifests
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl create secret generic shopsmart-secrets --from-literal=DATABASE_URL="$DATABASE_URL" -n shopsmart-prod --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -f k8s-rendered/backend-deployment.yaml
-          kubectl apply -f k8s-rendered/frontend-deployment.yaml
-      - name: Ensure Deployment Stability
-        run: |
-          kubectl rollout status deployment/backend-deployment -n shopsmart-prod
-          kubectl rollout status deployment/frontend-deployment -n shopsmart-prod
-      - name: Expose Service Endpoint
-        run: |
-          echo "Frontend LoadBalancer Endpoint:"
-          kubectl get services frontend-service -n shopsmart-prod
-      - name: Debug Deployment Failure
-        if: failure()
-        run: |
-          echo "=== Namespace Status ==="
-          kubectl get ns
-          echo "=== Pod Status ==="
-          kubectl get pods -n shopsmart-prod
-          echo "=== Pod Details (Backend) ==="
-          kubectl describe pods -l app=shopsmart-backend -n shopsmart-prod
-          echo "=== Node Status ==="
-          kubectl get nodes
-          echo "=== Cluster Events ==="
-          kubectl get events -n shopsmart-prod --sort-by='.lastTimestamp'
+  # deploy-eks:
+  #   name: Phase 4b - Kubernetes Deployment (EKS)
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+  #         aws-region: ${{ secrets.AWS_REGION }}
+  #     - name: Update KubeConfig
+  #       run: |
+  #         aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ env.PROJECT_NAME }}-eks-cluster
+  #     - name: Render Manifests with Account ID
+  #       run: |
+  #         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  #         mkdir -p k8s-rendered
+  #         for f in k8s/backend-deployment.yaml k8s/frontend-deployment.yaml; do
+  #           sed "s/<YOUR_AWS_ACCOUNT_ID>/$ACCOUNT_ID/g" "$f" > "k8s-rendered/$(basename "$f")"
+  #         done
+  #     - name: Deploy Kubernetes Manifests
+  #       env:
+  #         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  #       run: |
+  #         kubectl apply -f k8s/namespace.yaml
+  #         kubectl create secret generic shopsmart-secrets --from-literal=DATABASE_URL="$DATABASE_URL" -n shopsmart-prod --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl apply -f k8s-rendered/backend-deployment.yaml
+  #         kubectl apply -f k8s-rendered/frontend-deployment.yaml
+  #     - name: Ensure Deployment Stability
+  #       run: |
+  #         kubectl rollout status deployment/backend-deployment -n shopsmart-prod
+  #         kubectl rollout status deployment/frontend-deployment -n shopsmart-prod
+  #     - name: Expose Service Endpoint
+  #       run: |
+  #         echo "Frontend LoadBalancer Endpoint:"
+  #         kubectl get services frontend-service -n shopsmart-prod
+  #     - name: Debug Deployment Failure
+  #       if: failure()
+  #       run: |
+  #         echo "=== Namespace Status ==="
+  #         kubectl get ns
+  #         echo "=== Pod Status ==="
+  #         kubectl get pods -n shopsmart-prod
+  #         echo "=== Pod Details (Backend) ==="
+  #         kubectl describe pods -l app=shopsmart-backend -n shopsmart-prod
+  #         echo "=== Node Status ==="
+  #         kubectl get nodes
+  #         echo "=== Cluster Events ==="
+  #         kubectl get events -n shopsmart-prod --sort-by='.lastTimestamp'
