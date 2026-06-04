@@ -8,6 +8,16 @@ import {
 } from "../schemas/productSchema";
 import { z } from "zod";
 
+function IconPlus() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+
 interface ProductFormProps {
   onSubmit: (data: ProductData) => Promise<unknown>;
   loading: boolean;
@@ -78,7 +88,7 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
       noValidate
     >
       <div className="form-section-title">
-        <span className="form-section-title-icon" aria-hidden="true">+</span>
+        <span className="form-section-title-icon"><IconPlus /></span>
         Add New Product
       </div>
 

@@ -15,6 +15,13 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
+        {/* Google Fonts — preconnect prevents render-blocking */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=DM+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        />
         {/* Prevent theme flash on load */}
         <script
           dangerouslySetInnerHTML={{

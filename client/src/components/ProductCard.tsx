@@ -6,6 +6,31 @@ interface ProductCardProps {
   deleting: boolean;
 }
 
+/* ── SVG placeholder icon ─────────────────────────────────────────────────── */
+
+function IconProductPlaceholder() {
+  return (
+    <svg
+      width="36"
+      height="36"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ color: "var(--color-text-muted)" }}
+      aria-hidden="true"
+    >
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+/* ── Stock helpers ────────────────────────────────────────────────────────── */
+
 function getStockClass(stock: number): string {
   if (stock === 0) return "out-stock";
   if (stock < 5) return "low-stock";
@@ -18,36 +43,25 @@ function getStockLabel(stock: number): string {
   return `${stock} in stock`;
 }
 
-function getCategoryEmoji(category: string | null | undefined): string {
-  const map: Record<string, string> = {
-    electronics: "💻",
-    clothing:    "👕",
-    food:        "🍕",
-    books:       "📚",
-    sports:      "⚽",
-    toys:        "🧸",
-    beauty:      "💄",
-    home:        "🏠",
-    tools:       "🔧",
-  };
-  return category ? (map[category.toLowerCase()] ?? "📦") : "📦";
-}
+/* ── Component ────────────────────────────────────────────────────────────── */
 
 export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
   return (
     <article className="product-card">
       {/* Image / placeholder */}
-      <div className="product-image" aria-hidden={!product.imageUrl}>
+      <div className="product-image">
         {product.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={product.imageUrl}
             alt={product.name}
+            loading="lazy"
+            width={280}
+            height={160}
+            style={{ objectFit: "cover", width: "100%", height: "100%" }}
           />
         ) : (
-          <span role="img" aria-label={product.category ?? "product"}>
-            {getCategoryEmoji(product.category)}
-          </span>
+          <IconProductPlaceholder />
         )}
       </div>
 
@@ -63,7 +77,10 @@ export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
 
         {/* Footer: price + stock */}
         <div className="product-footer">
-          <span className="product-price" aria-label={`Price: $${product.price.toFixed(2)}`}>
+          <span
+            className="product-price"
+            aria-label={`Price: $${product.price.toFixed(2)}`}
+          >
             ${product.price.toFixed(2)}
           </span>
           <span
@@ -78,6 +95,7 @@ export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
       {/* Actions */}
       <div className="product-actions">
         <button
+          type="button"
           className="btn btn-danger btn-sm"
           onClick={() => onDelete(product.id)}
           disabled={deleting}

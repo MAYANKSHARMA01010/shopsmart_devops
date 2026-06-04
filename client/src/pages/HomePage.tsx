@@ -11,6 +11,98 @@ type HealthData = {
   database?: string;
 };
 
+/* ── SVG Icon components ─────────────────────────────────────────────────── */
+
+function IconBolt() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+function IconServer() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+      <line x1="6" y1="6" x2="6.01" y2="6" />
+      <line x1="6" y1="18" x2="6.01" y2="18" />
+    </svg>
+  );
+}
+
+function IconDatabase() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  );
+}
+
+function IconShield() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function IconXMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+/* ── Feature data ─────────────────────────────────────────────────────────── */
+
+const features = [
+  {
+    Icon: IconBolt,
+    title: "Next.js App Router",
+    desc: "TypeScript, server & client components, and optimized rendering out of the box.",
+  },
+  {
+    Icon: IconServer,
+    title: "Express Backend",
+    desc: "REST API with Zod validation and centralized error handling.",
+  },
+  {
+    Icon: IconDatabase,
+    title: "PostgreSQL",
+    desc: "Production-grade relational database with Prisma ORM and full type safety.",
+  },
+  {
+    Icon: IconShield,
+    title: "Type-Safe",
+    desc: "Shared Zod schemas enforce validation between frontend and backend simultaneously.",
+  },
+];
+
+/* ── Page ─────────────────────────────────────────────────────────────────── */
+
 export default function HomePage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,35 +116,11 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const features = [
-    {
-      icon: "⚡",
-      title: "Next.js App Router",
-      desc: "TypeScript, server & client components, and optimized rendering out of the box.",
-    },
-    {
-      icon: "🚀",
-      title: "Express Backend",
-      desc: "REST API with Zod validation and centralized error handling.",
-    },
-    {
-      icon: "🐘",
-      title: "PostgreSQL",
-      desc: "Production-grade relational database with Prisma ORM and full type safety.",
-    },
-    {
-      icon: "🔒",
-      title: "Type-Safe",
-      desc: "Shared Zod schemas enforce validation between frontend and backend simultaneously.",
-    },
-  ];
-
   return (
     <>
       {/* Hero */}
       <section className="hero">
         <div className="container">
-
           <h1 className="hero-title">
             ShopSmart
             <span className="hero-title-accent">Product Manager</span>
@@ -82,9 +150,8 @@ export default function HomePage() {
             className={`health-indicator ${
               loading ? "loading" : error ? "error" : "ok"
             }`}
-            aria-hidden="true"
           >
-            {loading ? "⋯" : error ? "✕" : "✓"}
+            {loading ? <IconClock /> : error ? <IconXMark /> : <IconCheck />}
           </div>
           <div className="health-info">
             <p className="health-label">Backend Status</p>
@@ -101,7 +168,7 @@ export default function HomePage() {
                   {health.status.toUpperCase()} — {health.message}
                 </p>
                 <p className="health-meta">
-                  {health.database || "Connected"} &nbsp;|&nbsp;{" "}
+                  {health.database || "Connected"}&nbsp;|&nbsp;
                   {new Date(health.timestamp).toLocaleTimeString()}
                 </p>
               </>
@@ -111,13 +178,13 @@ export default function HomePage() {
 
         {/* Features */}
         <div className="feature-grid">
-          {features.map((f) => (
-            <div className="feature-card" key={f.title}>
-              <div className="feature-icon" aria-hidden="true">
-                {f.icon}
+          {features.map(({ Icon, title, desc }) => (
+            <div className="feature-card" key={title}>
+              <div className="feature-icon">
+                <Icon />
               </div>
-              <div className="feature-title">{f.title}</div>
-              <div className="feature-desc">{f.desc}</div>
+              <div className="feature-title">{title}</div>
+              <div className="feature-desc">{desc}</div>
             </div>
           ))}
         </div>
