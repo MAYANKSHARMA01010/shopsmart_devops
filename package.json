@@ -16,5 +16,8 @@
     "test:client": "pnpm --filter shopsmart-frontend test",
     "test:coverage": "pnpm --parallel -r test:coverage",
     "install:all": "pnpm install"
+  },
+  "devDependencies": {
+    "@shopsmart/types": "workspace:*"
   }
 }
