@@ -7,7 +7,16 @@
  */
 import request from 'supertest';
 import { describe, it, expect } from 'vitest';
+import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
 import app from '../src/server';
+
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-access-secret';
+const adminToken = jwt.sign(
+  { id: 'admin-id-123', email: 'admin@example.com', role: Role.ADMIN },
+  ACCESS_SECRET,
+  { expiresIn: '1h' }
+);
 
 describe('ShopSmart — Integration Tests (API + Database)', () => {
 
@@ -30,11 +39,11 @@ describe('ShopSmart — Integration Tests (API + Database)', () => {
     it('should return 200 and an array of products', async () => {
       const res = await request(app).get('/api/products');
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
     });
 
     it('should return 404 for a non-existent product ID', async () => {
-      const res = await request(app).get('/api/products/999999');
+      const res = await request(app).get('/api/products/00000000-0000-0000-0000-999999999999');
       expect(res.status).toBe(404);
       expect(res.body).toHaveProperty('message', 'Product not found');
     });
@@ -44,7 +53,8 @@ describe('ShopSmart — Integration Tests (API + Database)', () => {
     it('should return 400 with validation errors for invalid product data', async () => {
       const res = await request(app)
         .post('/api/products')
-        .send({ name: '', price: -10 });
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: '', basePrice: -10, categoryId: 'invalid-uuid' });
 
       expect(res.status).toBe(400);
       expect(res.body).toHaveProperty('status', 'fail');
