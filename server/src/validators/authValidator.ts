@@ -45,13 +45,17 @@ export const validateBody = (schema: z.ZodSchema) => (req: Request, res: Respons
   try {
     req.body = schema.parse(req.body);
     next();
-  } catch (error: any) {
-    return res.status(400).json({
-      status: 'fail',
-      errors: error.errors.map((err: any) => ({
-        field: err.path.join('.'),
-        message: err.message,
-      })),
-    });
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        })),
+      });
+    }
+    return res.status(400).json({ success: false, message: 'Invalid request payload' });
   }
 };

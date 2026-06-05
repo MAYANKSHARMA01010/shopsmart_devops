@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import prisma from '../config/database';
 import { AppError } from '../utils/AppError';
 import { JwtPayload } from '../types/auth';
+import { Role } from '@prisma/client';
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-access-secret';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret';
@@ -13,7 +14,7 @@ const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');
 
 class AuthService {
-  async register(data: any, deviceInfo?: string) {
+  async register(data: Record<string, string>, deviceInfo?: string) {
     // Check if email already exists
     const existingEmail = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingEmail) {
@@ -79,7 +80,7 @@ class AuthService {
     };
   }
 
-  async login(data: any, deviceInfo?: string) {
+  async login(data: Record<string, string>, deviceInfo?: string) {
     // Find user by email or username
     const user = await prisma.user.findFirst({
       where: {
@@ -110,7 +111,7 @@ class AuthService {
   }
 
   async refreshTokens(rawRefreshToken: string, deviceInfo?: string) {
-    let decoded: any;
+    let decoded: jwt.JwtPayload | string;
     try {
       decoded = jwt.verify(rawRefreshToken, REFRESH_SECRET);
     } catch (_err) {
@@ -159,7 +160,7 @@ class AuthService {
     return this.sanitizeUser(user);
   }
 
-  async updateProfile(id: string, data: any) {
+  async updateProfile(id: string, data: { name?: string; username?: string; phone?: string | null; avatar?: string | null; gender?: string | null }) {
     // If username is changing, check uniqueness
     if (data.username) {
       const existing = await prisma.user.findFirst({
@@ -189,18 +190,18 @@ class AuthService {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
-  private generateTokenPair(user: { id: string; email: string; role: any }) {
+  private generateTokenPair(user: { id: string; email: string; role: Role }) {
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,
       role: user.role,
     };
 
-    const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });
+    const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES as jwt.SignOptions['expiresIn'] });
     const refreshToken = jwt.sign(
       { id: user.id, jti: crypto.randomUUID() },
       REFRESH_SECRET,
-      { expiresIn: REFRESH_EXPIRES }
+      { expiresIn: REFRESH_EXPIRES as jwt.SignOptions['expiresIn'] }
     );
 
     return { accessToken, refreshToken };
@@ -223,8 +224,8 @@ class AuthService {
     });
   }
 
-  private sanitizeUser(user: any) {
-    const { password, ...sanitized } = user;
+  private sanitizeUser(user: Record<string, unknown>) {
+    const { password: _password, ...sanitized } = user;
     return sanitized;
   }
 }

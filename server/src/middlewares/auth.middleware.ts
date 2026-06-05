@@ -15,8 +15,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'default-access-secret') as JwtPayload;
     req.user = decoded;
     next();
-  } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'TokenExpiredError') {
       return next(new AppError('Unauthorized: Access token expired', 401));
     }
     return next(new AppError('Unauthorized: Invalid access token', 401));
