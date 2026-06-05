@@ -11,14 +11,253 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
+// ═══════════════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════════════
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  VENDOR
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH MODELS
+// ═══════════════════════════════════════════════════════════════
+
+model User {
+  id              String  @id @default(uuid())
+  name            String
+  username        String? @unique
+  email           String  @unique
+  password        String
+  phone           String?
+  avatar          String?
+  gender          String?
+  role            Role    @default(CUSTOMER)
+  isEmailVerified Boolean @default(false)
+
+  // Relations
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordResetToken[]
+  orders         Order[]
+  cart           Cart?
+  addresses      Address[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  /// SHA-256 hash of the raw token. Never store raw tokens.
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceInfo String?
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  /// SHA-256 hash of the raw token.
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUCT MODELS
+// ═══════════════════════════════════════════════════════════════
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  slug        String  @unique
   description String?
-  price       Float
-  stock       Int      @default(0)
-  category    String?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  image       String?
+  parentId    String?
+
+  /// Self-referential category tree (max recommended depth: 3)
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  /// Decimal(10,2): prevents floating-point currency errors. Max value: 99,999,999.99
+  basePrice    Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  stock        Int      @default(0)
+  sku          String?  @unique
+  images       String[]
+  isVisible    Boolean  @default(true)
+  categoryId   String
+
+  // Relations
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isVisible])
+  @@index([slug])
+  @@map("products")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CART MODELS
+// ═══════════════════════════════════════════════════════════════
+
+model Cart {
+  id     String     @id @default(uuid())
+  userId String     @unique
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// A product can only appear once per cart
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADDRESS MODEL
+// ═══════════════════════════════════════════════════════════════
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  email      String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  country    String  @default("IN")
+  postalCode String
+  isDefault  Boolean @default(false)
+
+  // Relations
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ORDER MODELS
+// ═══════════════════════════════════════════════════════════════
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  addressId String
+  address   Address     @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  status    OrderStatus @default(PENDING)
+
+  /// All amounts in Decimal(10,2) for financial precision
+  subtotal       Decimal @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(10, 2)
+  shippingAmount Decimal @default(0) @db.Decimal(10, 2)
+  totalAmount    Decimal @db.Decimal(10, 2)
+
+  couponCode String?
+  notes      String?
+  items      OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  /// Point-in-time snapshots — preserved even if the product is later edited or deleted
+  productName     String
+  productSku      String?
+  quantity        Int
+  priceAtPurchase Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  /// A product can only appear once per order (quantities are consolidated)
+  @@unique([orderId, productId])
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }
