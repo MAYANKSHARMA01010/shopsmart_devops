@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@shopsmart/types": "workspace:*",
     "axios": "^1.7.9",
     "next": "16.2.3",
     "react": "^19",
