@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   productSchema,
   type ProductFormValues,
@@ -17,30 +17,49 @@ function IconPlus() {
   );
 }
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 interface ProductFormProps {
   onSubmit: (data: ProductData) => Promise<unknown>;
   loading: boolean;
 }
 
-const CATEGORIES = [
-  "Electronics", "Clothing", "Food", "Books",
-  "Sports", "Toys", "Beauty", "Home", "Tools",
-];
-
 const EMPTY: ProductFormValues = {
-  name:        "",
+  name: "",
   description: "",
-  price:       "",
-  stock:       "",
-  category:    "",
-  imageUrl:    "",
+  basePrice: "",
+  stock: "",
+  categoryId: "",
+  images: [],
+  isVisible: true,
 };
 
 export function ProductForm({ onSubmit, loading }: ProductFormProps) {
-  const [form, setForm]             = useState<ProductFormValues>(EMPTY);
-  const [errors, setErrors]         = useState<Record<string, string>>({});
+  const [form, setForm] = useState<ProductFormValues>(EMPTY);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Fetch categories from the API on mount
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/categories`)
+      .then((r) => r.json())
+      .then((res) => {
+        const cats = res.data ?? res;
+        // Filter out 'uncategorized' (migration safety category — not for user selection)
+        setCategories(
+          (cats as Category[]).filter((c) => c.slug !== "uncategorized")
+        );
+      })
+      .catch(() => {
+        // Fallback: leave categories empty — user sees the empty select
+      });
+  }, []);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -56,6 +75,21 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
     }
   }
 
+  function handleAddImage() {
+    const trimmed = imageUrlInput.trim();
+    if (!trimmed) return;
+    setForm((prev) => ({ ...prev, images: [...(prev.images ?? []), trimmed] }));
+    setImageUrlInput("");
+    if (errors.images) setErrors((prev) => { const n = { ...prev }; delete n.images; return n; });
+  }
+
+  function handleRemoveImage(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      images: (prev.images ?? []).filter((_, i) => i !== index),
+    }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrors({});
@@ -65,6 +99,7 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
       const validatedData = productSchema.parse(form);
       await onSubmit(validatedData);
       setForm(EMPTY);
+      setImageUrlInput("");
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -122,46 +157,47 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
 
         {/* Category */}
         <div className="form-field">
-          <label htmlFor="category">Category</label>
+          <label htmlFor="categoryId">Category *</label>
           <select
-            id="category"
-            name="category"
-            value={form.category || ""}
+            id="categoryId"
+            name="categoryId"
+            value={form.categoryId ?? ""}
             onChange={handleChange}
-            aria-describedby={errors.category ? "category-error" : undefined}
+            className={errors.categoryId ? "input-error" : ""}
+            aria-describedby={errors.categoryId ? "category-error" : undefined}
           >
             <option value="">Select category</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat.toLowerCase()}>
-                {cat}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
               </option>
             ))}
           </select>
-          {errors.category && (
+          {errors.categoryId && (
             <span id="category-error" className="error-text" role="alert">
-              {errors.category}
+              {errors.categoryId}
             </span>
           )}
         </div>
 
         {/* Price */}
         <div className="form-field">
-          <label htmlFor="price">Price ($) *</label>
+          <label htmlFor="basePrice">Price (₹) *</label>
           <input
-            id="price"
-            name="price"
+            id="basePrice"
+            name="basePrice"
             type="text"
             inputMode="decimal"
-            value={form.price}
+            value={form.basePrice as string}
             onChange={handleChange}
-            placeholder="29.99"
-            className={errors.price ? "input-error" : ""}
-            aria-describedby={errors.price ? "price-error" : undefined}
+            placeholder="999.00"
+            className={errors.basePrice ? "input-error" : ""}
+            aria-describedby={errors.basePrice ? "price-error" : undefined}
             aria-required="true"
           />
-          {errors.price && (
+          {errors.basePrice && (
             <span id="price-error" className="error-text" role="alert">
-              {errors.price}
+              {errors.basePrice}
             </span>
           )}
         </div>
@@ -174,7 +210,7 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
             name="stock"
             type="text"
             inputMode="numeric"
-            value={form.stock}
+            value={form.stock as string}
             onChange={handleChange}
             placeholder="100"
             className={errors.stock ? "input-error" : ""}
@@ -206,21 +242,42 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
           )}
         </div>
 
-        {/* Image URL */}
+        {/* Images */}
         <div className="form-field full-width">
-          <label htmlFor="imageUrl">Image URL</label>
-          <input
-            id="imageUrl"
-            name="imageUrl"
-            type="url"
-            value={form.imageUrl || ""}
-            onChange={handleChange}
-            placeholder="https://images.unsplash.com/…"
-            aria-describedby={errors.imageUrl ? "imageurl-error" : undefined}
-          />
-          {errors.imageUrl && (
-            <span id="imageurl-error" className="error-text" role="alert">
-              {errors.imageUrl}
+          <label htmlFor="imageUrlInput">Image URLs</label>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            <input
+              id="imageUrlInput"
+              type="url"
+              value={imageUrlInput}
+              onChange={(e) => setImageUrlInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddImage(); } }}
+              placeholder="https://images.unsplash.com/…"
+              style={{ flex: 1 }}
+              aria-describedby={errors.images ? "images-error" : undefined}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleAddImage}
+              disabled={!imageUrlInput.trim()}
+            >
+              Add
+            </button>
+          </div>
+          {(form.images ?? []).length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, marginTop: "var(--space-2)" }}>
+              {(form.images ?? []).map((url, i) => (
+                <li key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)", fontSize: "0.85rem", padding: "2px 0" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</span>
+                  <button type="button" onClick={() => handleRemoveImage(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-danger)", flexShrink: 0 }}>✕</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {errors.images && (
+            <span id="images-error" className="error-text" role="alert">
+              {errors.images}
             </span>
           )}
         </div>
@@ -232,6 +289,7 @@ export function ProductForm({ onSubmit, loading }: ProductFormProps) {
           className="btn btn-secondary"
           onClick={() => {
             setForm(EMPTY);
+            setImageUrlInput("");
             setErrors({});
             setServerError(null);
           }}

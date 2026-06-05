@@ -1,22 +1,48 @@
 import apiClient from "./apiClient";
 import type { Product, ProductData } from "../schemas/productSchema";
 
+// ─── API response envelopes ─────────────────────────────────────────────────
+
+interface ApiListResponse<T> {
+  data: T[];
+  total: number;
+}
+
+interface ApiSingleResponse<T> {
+  data: T;
+  message?: string;
+}
+
+// ─── Product API service ────────────────────────────────────────────────────
+
 export const productService = {
-  getAll: (params?: { category?: string; search?: string }): Promise<Product[]> => 
+  /** GET /api/products?category=electronics&search=keyboard */
+  getAll: (params?: {
+    category?: string;
+    search?: string;
+  }): Promise<ApiListResponse<Product>> =>
     apiClient.get("/products", { params }),
 
-  getById: (id: number): Promise<Product> => 
+  /** GET /api/products/:id  — id is a UUID string */
+  getById: (id: string): Promise<ApiSingleResponse<Product>> =>
     apiClient.get(`/products/${id}`),
 
-  create: (data: ProductData): Promise<Product> => 
+  /** POST /api/products */
+  create: (data: ProductData): Promise<ApiSingleResponse<Product>> =>
     apiClient.post("/products", data),
 
-  update: (id: number, data: Partial<ProductData>): Promise<Product> => 
+  /** PUT /api/products/:id  — id is a UUID string */
+  update: (
+    id: string,
+    data: Partial<ProductData>
+  ): Promise<ApiSingleResponse<Product>> =>
     apiClient.put(`/products/${id}`, data),
 
-  delete: (id: number): Promise<{ message: string }> => 
+  /** DELETE /api/products/:id  — id is a UUID string */
+  delete: (id: string): Promise<{ message: string }> =>
     apiClient.delete(`/products/${id}`),
 
-  checkHealth: (): Promise<{ status: string; message: string; timestamp: string }> => 
+  /** GET /api/health */
+  checkHealth: (): Promise<{ status: string; message: string; timestamp: string }> =>
     apiClient.get("/health"),
 };

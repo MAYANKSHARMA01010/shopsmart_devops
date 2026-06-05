@@ -47,6 +47,7 @@ export function ThemeToggle() {
   useEffect(() => {
     const stored = getStoredTheme();
     const resolved = stored ?? getSystemTheme();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(resolved);
     document.documentElement.setAttribute("data-theme", resolved);
     setMounted(true);

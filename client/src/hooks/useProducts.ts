@@ -8,17 +8,19 @@ export function useProducts(filters: { search: string; category: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  // id is now a UUID string, not a number
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await productService.getAll({
+      const response = await productService.getAll({
         search: filters.search || undefined,
         category: filters.category !== "all" ? filters.category : undefined,
       });
-      setProducts(data);
+      // Unwrap from { data: Product[], total: number } envelope
+      setProducts(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -31,12 +33,13 @@ export function useProducts(filters: { search: string; category: string }) {
     return () => clearTimeout(t);
   }, [fetchProducts]);
 
-  const addProduct = async (data: ProductData) => {
+  const addProduct = async (data: ProductData): Promise<Product | undefined> => {
     setAdding(true);
     setError(null);
     setSuccess(null);
     try {
-      const product = await productService.create(data);
+      const response = await productService.create(data);
+      const product = response.data;
       setProducts((prev) => [product, ...prev]);
       setSuccess(`"${product.name}" has been added successfully!`);
       setTimeout(() => setSuccess(null), 3000);
@@ -48,7 +51,7 @@ export function useProducts(filters: { search: string; category: string }) {
     }
   };
 
-  const deleteProduct = async (id: number) => {
+  const deleteProduct = async (id: string): Promise<void> => {
     setDeletingId(id);
     setError(null);
     setSuccess(null);

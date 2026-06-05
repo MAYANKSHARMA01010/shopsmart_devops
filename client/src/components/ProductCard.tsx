@@ -1,8 +1,9 @@
+import { formatPrice } from "../schemas/productSchema";
 import type { Product } from "../schemas/productSchema";
 
 interface ProductCardProps {
   product: Product;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
   deleting: boolean;
 }
 
@@ -50,10 +51,10 @@ export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
     <article className="product-card">
       {/* Image / placeholder */}
       <div className="product-image">
-        {product.imageUrl ? (
+        {product.images && product.images.length > 0 ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.imageUrl}
+            src={product.images[0]}
             alt={product.name}
             loading="lazy"
             width={280}
@@ -68,7 +69,7 @@ export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
       {/* Body */}
       <div className="product-body">
         {product.category && (
-          <span className="product-category">{product.category}</span>
+          <span className="product-category">{product.category.name}</span>
         )}
         <h2 className="product-name">{product.name}</h2>
         {product.description && (
@@ -79,9 +80,9 @@ export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
         <div className="product-footer">
           <span
             className="product-price"
-            aria-label={`Price: $${product.price.toFixed(2)}`}
+            aria-label={`Price: ₹${formatPrice(product.basePrice)}`}
           >
-            ${product.price.toFixed(2)}
+            ₹{formatPrice(product.basePrice)}
           </span>
           <span
             className={`product-stock ${getStockClass(product.stock)}`}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useProducts } from "../hooks/useProducts";
 import type { ProductData } from "../schemas/productSchema";
+import { formatPrice } from "../schemas/productSchema";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductForm } from "@/components/ProductForm";
 
@@ -106,7 +107,11 @@ export default function ProductsPage() {
     deleteProduct,
   } = useProducts({ search, category });
 
-  const totalValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
+  // basePrice comes from API as a Decimal-serialized string (e.g. "7999.00")
+  const totalValue = products.reduce(
+    (sum, p) => sum + parseFloat(formatPrice(p.basePrice)) * p.stock,
+    0
+  );
   const inStock = products.filter((p) => p.stock > 0).length;
 
   async function handleAddProduct(data: ProductData) {
@@ -156,7 +161,7 @@ export default function ProductsPage() {
           <div className="stat-card">
             <div className="stat-icon"><IconDollar /></div>
             <div className="stat-value">
-              ${totalValue.toLocaleString("en", { maximumFractionDigits: 0 })}
+              ₹{totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
             </div>
             <div className="stat-label">Inventory Value</div>
           </div>

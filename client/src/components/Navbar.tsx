@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "@/context/AuthContext";
 
 const links = [
   { href: "/",        label: "Home" },
@@ -11,6 +12,7 @@ const links = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <nav className="navbar" role="navigation" aria-label="Main navigation">
@@ -42,6 +44,44 @@ export function Navbar() {
                   </li>
                 );
               })}
+
+              {user ? (
+                <>
+                  <li>
+                    <span className="nav-link" style={{ cursor: "default", fontWeight: 600 }}>
+                      Hi, {user.name.split(" ")[0]} ({user.role})
+                    </span>
+                  </li>
+                  <li>
+                    <button
+                      onClick={logout}
+                      className="nav-link"
+                      style={{ background: "transparent", border: "none", cursor: "pointer", font: "inherit", width: "100%", textAlign: "left" }}
+                    >
+                      Logout
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link
+                      href="/login"
+                      className={`nav-link${pathname === "/login" ? " active" : ""}`}
+                    >
+                      Login
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/register"
+                      className={`nav-link${pathname === "/register" ? " active" : ""}`}
+                    >
+                      Register
+                    </Link>
+                  </li>
+                </>
+              )}
             </ul>
 
             <ThemeToggle />

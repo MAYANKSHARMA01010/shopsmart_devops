@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "ShopSmart — Product Manager",
@@ -38,20 +39,22 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <div className="page-wrapper">
-          <Navbar />
-          <main style={{ flex: 1 }}>{children}</main>
-          <footer className="footer">
-            <div className="container">
-              <p>
-                ShopSmart &copy; {new Date().getFullYear()} &mdash; Built by{" "}
-                <a target="_blank" rel="noopener noreferrer">
-                  <strong>Mayank Sharma ❤️</strong>
-                </a>
-              </p>
-            </div>
-          </footer>
-        </div>
+        <AuthProvider>
+          <div className="page-wrapper">
+            <Navbar />
+            <main style={{ flex: 1 }}>{children}</main>
+            <footer className="footer">
+              <div className="container">
+                <p>
+                  ShopSmart &copy; {new Date().getFullYear()} &mdash; Built by{" "}
+                  <a target="_blank" rel="noopener noreferrer">
+                    <strong>Mayank Sharma ❤️</strong>
+                  </a>
+                </p>
+              </div>
+            </footer>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
