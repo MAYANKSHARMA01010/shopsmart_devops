@@ -1,7 +1,8 @@
 {
-  "name": "shopsmart",
+  "name": "shopsmart-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "dev:server": "pnpm --filter shopsmart-server dev",
@@ -15,9 +16,17 @@
     "test:server": "pnpm --filter shopsmart-server test",
     "test:client": "pnpm --filter shopsmart-frontend test",
     "test:coverage": "pnpm --parallel -r test:coverage",
-    "install:all": "pnpm install"
+    "install:all": "pnpm install",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@shopsmart/shared-types": "workspace:*"
+    "@changesets/cli": "^2.31.0",
+    "@shopsmart/api-contracts": "workspace:*",
+    "dependency-cruiser": "^17.4.3",
+    "husky": "^9.1.7",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "ts-morph": "^28.0.0",
+    "turbo": "^2.9.18"
   }
 }
