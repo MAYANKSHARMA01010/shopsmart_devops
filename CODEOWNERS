@@ -1,0 +1,15 @@
+# CODEOWNERS
+# Use this file to define individuals or teams that own specific files or paths in the repository.
+
+# Global owners (fallback)
+*       @mayanksharma
+
+# Frontend owners
+/client/    @mayanksharma
+
+# Backend owners
+/server/    @mayanksharma
+
+# Infrastructure
+/terraform/ @mayanksharma
+/scripts/   @mayanksharma
