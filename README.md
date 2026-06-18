@@ -1,229 +1,174 @@
-# ShopSmart
+<div align="center">
+  <h1>ShopSmart</h1>
+  <p><b>Production-grade Full Stack Commerce Platform</b></p>
+  <p>Architected with Next.js, Express, TypeScript, Prisma, PostgreSQL, Redis, BullMQ, and Razorpay.</p>
 
-A production-grade, full-stack e-commerce reference project. The codebase
-is intentionally small but covers an end-to-end industrial pipeline:
-TypeScript app code, Postgres + Redis, Docker, Terraform-provisioned AWS
-infrastructure (VPC, S3, ECR, ECS Fargate, EKS, EC2, IAM, CloudWatch),
-and a GitHub Actions pipeline that runs tests, provisions infra, builds
-and pushes images, and deploys to **both ECS and EKS** in parallel.
-
-> If you're grading this against the deployment rubric, jump straight to
-> [`docs/RUBRIC.md`](./docs/RUBRIC.md) for a line-by-line compliance map.
-
----
-
-## Table of contents
-
-1. [What's in the repo](#whats-in-the-repo)
-2. [Tech stack](#tech-stack)
-3. [Getting Started](#getting-started)
-4. [Running the pipeline (cloud)](#running-the-pipeline-cloud)
-5. [Repository layout](#repository-layout)
-6. [Documentation index](#documentation-index)
-7. [Common commands cheat-sheet](#common-commands-cheat-sheet)
-8. [Troubleshooting](#troubleshooting)
+  ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+  ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
+  ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=nextdotjs&logoColor=white)
+  ![Express](https://img.shields.io/badge/Express-000000?style=flat&logo=express&logoColor=white)
+  ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)
+  ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat&logo=postgresql&logoColor=white)
+</div>
 
 ---
 
-## What's in the repo
+## 📖 Overview
 
-| Layer | Tech | Where |
-|---|---|---|
-| Frontend | Next.js 16 (App Router), React 19, Axios, Zod | `client/` |
-| Backend | Node.js, Express 5, TypeScript, Prisma, Zod | `server/` |
-| Database | PostgreSQL 15 (Prisma ORM) | external (Neon / RDS / Docker) |
-| Cache | Redis 7 (ioredis) | external or Docker |
-| Containers | Multi-stage, non-root, healthcheck-equipped Dockerfiles | `server/Dockerfile`, `client/Dockerfile` |
-| Infrastructure | Terraform (AWS provider) | `terraform/` |
-| Orchestration | ECS Fargate **and** EKS (Kubernetes 1.30) | `terraform/ecs.tf`, `terraform/eks.tf`, `k8s/` |
-| CI/CD | GitHub Actions (5 workflows) | `.github/workflows/` |
-| Tests | Mocha + Chai + Supertest (server), Jest + RTL (client), Playwright (E2E) | `server/tests/`, `client/src/.../__tests__/`, `client/e2e/` |
+ShopSmart is a robust, transactional e-commerce platform designed with production readiness and industrial-scale architecture in mind. 
 
----
+Far from a simple CRUD application, ShopSmart implements complex state machines, strict concurrency locking mechanisms, external payment webhook ingestion, and resilient queue-based event processing.
 
-## Tech stack
+## ✨ Key Features
 
-```
-            ┌──────────────────────┐
-            │   Next.js 16 (App)   │   ── client/
-            │   React 19 + Zod     │
-            └──────────┬───────────┘
-                       │ HTTP
-            ┌──────────▼───────────┐
-            │  Express 5 + TS API  │   ── server/
-            │  Prisma ORM + Zod    │
-            └────┬─────────┬───────┘
-                 │         │
-        ┌────────▼─┐    ┌──▼─────────┐
-        │ Postgres │    │   Redis    │
-        └──────────┘    └────────────┘
+- **Robust Authentication & Authorization**: JWT-based authentication combined with rigorous Policy-Based Access Control (PBAC).
+- **Transactional Commerce Engine**: Utilizes PostgreSQL row-level locks (`SELECT ... FOR UPDATE`) sorted dynamically to prevent deadlocks during high-concurrency checkout bursts.
+- **Payment Gateway Abstraction**: Interfaces natively with Razorpay via secure, dynamic loading and backend-verified signatures using `express.raw()`.
+- **Asynchronous Webhook Processing**: Replaces synchronous API chokepoints with asynchronous BullMQ workers. Incorporates `ProcessedWebhook` PG constraints to guarantee idempotency during webhook storms.
+- **Order State Machine**: A strict, unified state transition boundary (`OrderStateMachine`) ensures orders traverse statuses (`PENDING` → `PAYMENT_PENDING` → `CONFIRMED` → `PROCESSING`) deterministically.
+- **Centralized Error Handling**: Standardized `AppError` envelopes combined with asynchronous catch wrappers (`catchAsync`).
+- **Comprehensive Logging & Auditing**: Winston structured logging and dedicated `OrderAuditLog` trails for financial accountability.
+- **Modern Frontend State**: Zustand for deterministic client state (`checkoutStore`) combined with `@tanstack/react-query` for server-state caching, invalidation, and retries.
+
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    Client[Next.js Frontend] -->|REST API| API[Express Backend]
+    
+    subgraph Infrastructure
+        API -->|Read/Write/Lock| DB[(PostgreSQL)]
+        API -->|Queue Jobs| Redis[(Redis)]
+        Redis -->|Consume| Worker[BullMQ Worker]
+        Worker -->|Transition State| DB
+    end
+    
+    subgraph External Systems
+        API -->|Verify| Razorpay[Razorpay Gateway]
+        Razorpay -->|Webhooks| API
+    end
 ```
 
-Containerised, then deployed via Terraform to:
+For more detailed diagrams, see the [`docs/architecture`](./docs/architecture) folder.
 
-- **ECS Fargate** — managed task scheduling, no nodes to maintain.
-- **EKS** — Kubernetes 1.30, managed node group, t3.medium workers.
+## 🛠️ Tech Stack
 
----
+### Frontend
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **State Management**: Zustand (Client State), TanStack React Query (Server State)
+- **Styling**: Tailwind CSS
+- **Validation**: Zod (Shared schemas with Backend)
 
-## Getting Started
+### Backend
+- **Framework**: Node.js & Express 5
+- **Language**: TypeScript
+- **Database ORM**: Prisma
+- **Database Engine**: PostgreSQL 15
+- **Cache & Queueing**: Redis 7 & BullMQ
+- **Payment Processing**: Razorpay
+- **Validation**: Zod
+- **Testing**: Vitest
 
-If you are new to this project or looking to set it up locally, please refer to our **[Beginner Setup Guide](./docs/Beginner_Setup_Guide.md)**. 
+### Infrastructure & DevOps
+- **Containerization**: Multi-stage Docker & Docker Compose
+- **CI/CD**: GitHub Actions
+- **API Documentation**: OpenAPI 3.0 / Swagger UI
 
-The guide covers:
-- Prerequisites and installation (Node.js, Docker, pnpm).
-- Step-by-step local setup (both Docker-based and manual approaches).
-- Environment variable configuration.
-- Basic cloud deployment steps.
+## 📂 Repository Layout
 
-> **Tip:** For automated secret synchronization to GitHub Actions, you can run `./scripts/sync_all_secrets.sh` after setting up your root `.env` file (see [`docs/CICD.md`](./docs/CICD.md#github-secrets) for more details).
-
----
-
-## Running the pipeline (cloud)
-
-The canonical pipeline is **`.github/workflows/rubric-deployment.yml`**. It
-fires on push/PR to `main` *and* manual dispatch:
-
-```
-Push / PR / dispatch
-        │
-        ▼
-┌──────────────────┐
-│ Phase 1: Tests   │  c8 + Jest coverage uploaded as artifact
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Phase 2: Terraform│  init → validate → import-existing → plan → apply
-└────────┬─────────┘   provisions VPC, S3, ECR×2, CloudWatch, ECS, EKS, EC2, IAM
-         ▼
-┌──────────────────┐
-│ Phase 3: Build    │  docker build + push to ECR (server + client)
-└────────┬─────────┘
-         ▼
-   ┌─────┴─────┐
-   ▼           ▼
-┌───────┐  ┌───────┐
-│ ECS   │  │ EKS   │   parallel — both run after build-and-push
-│ Fargate│ │ k8s   │
-└───────┘  └───────┘
-```
-
-To run it: `git push origin main` (or open a PR), or trigger
-`Actions → Rubric: EKS Production Deployment → Run workflow`.
-
-The split-phase variant (`pipeline.yml` calling `01-test.yml`,
-`02-terraform.yml`, `03-docker-build-push.yml`, `04-ecs-deploy.yml`) is
-manual-dispatch only. See [`docs/CICD.md`](./docs/CICD.md) for when to use which.
-
----
-
-## Repository layout
-
-```
+```text
 shopsmart/
-├── .github/workflows/      # GitHub Actions pipelines (5 workflows)
-├── client/                 # Next.js 16 frontend
-│   ├── src/                # App router pages, components, tests
-│   ├── e2e/                # Playwright E2E specs
-│   └── Dockerfile          # Multi-stage, non-root, healthcheck
-├── server/                 # Express + TypeScript backend
-│   ├── src/                # Routes, controllers, prisma client
-│   ├── prisma/             # schema.prisma + migrations
-│   ├── tests/              # Mocha + Chai + Supertest integration tests
-│   └── Dockerfile          # Multi-stage, non-root, healthcheck
-├── terraform/              # Infrastructure as Code
-│   ├── main.tf             # S3 bucket + ECR repos
-│   ├── vpc.tf              # VPC, subnets, IGW, route table, SG
-│   ├── ec2.tf              # Amazon Linux 2 jump host
-│   ├── ecs.tf              # ECS Fargate cluster, task defs, services
-│   ├── eks.tf              # EKS cluster + managed node group
-│   ├── iam.tf              # LabRole reference (lab IAM strategy)
-│   ├── providers.tf        # Provider + S3 backend
-│   └── variables.tf
-├── k8s/                    # Kubernetes manifests for EKS deployment
-│   ├── namespace.yaml      # shopsmart-prod (non-default)
-│   ├── backend-deployment.yaml   # 2 replicas, probes, limits
-│   └── frontend-deployment.yaml  # 2 replicas, LoadBalancer Service
-├── docker/                 # (reserved for shared docker assets)
-├── scripts/                # Operational scripts (EC2 control, secret sync)
-├── docs/                   # Detailed documentation (see index below)
-├── docker-compose.yml      # Local dev stack
-├── pnpm-workspace.yaml
-└── README.md               # ← you are here
+├── client/                 # Next.js Frontend App
+├── server/                 # Express API Backend
+│   ├── src/
+│   │   ├── modules/        # Domain-driven feature modules (auth, cart, checkout, payment, etc.)
+│   │   ├── queues/         # BullMQ queue definitions
+│   │   ├── workers/        # Background job processors
+│   └── prisma/             # Database schema and migrations
+├── packages/types/         # Shared TypeScript interfaces and schemas
+├── docs/                   # Architecture diagrams and API specs
+│   └── architecture/       # Mermaid diagrams for system flows
+├── docker-compose.yml      # Local development infrastructure
+└── .github/workflows/      # CI/CD pipelines
 ```
 
----
+## 🚀 Getting Started
 
-## Documentation index
+### Prerequisites
+- Node.js 20+
+- pnpm 10+
+- Docker & Docker Compose
 
-Start at the top, drill in as needed.
+### Local Development
 
-| Doc | Purpose |
-|---|---|
-| **[Beginner_Setup_Guide.md](./docs/Beginner_Setup_Guide.md)** | **Start Here!** Easy, step-by-step setup guide for beginners. |
-| **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | System overview, request lifecycle, component diagrams |
-| **[INFRASTRUCTURE.md](./docs/INFRASTRUCTURE.md)** | Terraform module-by-module breakdown, AWS resources, gotchas |
-| **[CICD.md](./docs/CICD.md)** | GitHub Actions pipeline reference, secrets, triggers, workflow per phase |
-| **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** | Operational runbook: deploy, rollback, debug, view logs |
-| **[RUBRIC.md](./docs/RUBRIC.md)** | Rubric requirement → exact file/line compliance map |
-| [API.md](./docs/API.md) | REST endpoints, request/response examples |
-| [DATABASE.md](./docs/DATABASE.md) | Prisma schema, migrations, Redis caching |
-| [DOCKER.md](./docs/DOCKER.md) | Image design (multi-stage, non-root, healthcheck) |
-| [FRONTEND.md](./docs/FRONTEND.md) | Component structure, state, styling |
-| [TESTING.md](./docs/TESTING.md) | Test pyramid: unit, integration, E2E |
-| [ROADMAP.md](./docs/ROADMAP.md) | What's done, what's next |
+1. **Clone & Install**
+   ```bash
+   git clone https://github.com/your-username/shopsmart.git
+   cd shopsmart
+   pnpm install
+   ```
 
----
+2. **Start Infrastructure**
+   Boot up PostgreSQL and Redis locally:
+   ```bash
+   docker compose up -d db redis
+   ```
 
-## Common commands cheat-sheet
+3. **Configure Environment**
+   Copy the example environment files and fill in your local credentials:
+   ```bash
+   cp server/.env.example server/.env
+   cp client/.env.example client/.env
+   ```
+
+4. **Initialize Database**
+   ```bash
+   cd server
+   pnpm prisma migrate deploy
+   pnpm prisma generate
+   ```
+
+5. **Start Development Servers**
+   In the root directory:
+   ```bash
+   pnpm dev
+   ```
+   - Frontend runs on `http://localhost:3000`
+   - Backend API runs on `http://localhost:5001/api`
+   - Swagger Documentation runs on `http://localhost:5001/api-docs`
+
+## 🧪 Testing
+
+The platform is heavily tested using Vitest for both unit and integration tests.
 
 ```bash
-# Backend
-cd server
-pnpm dev              # ts-node + nodemon
-pnpm test             # Mocha + c8 coverage → server/coverage/
-pnpm db:push          # Prisma → push schema
-pnpm db:studio        # Prisma Studio web UI
+# Run all tests
+pnpm test
 
-# Frontend
-cd client
-pnpm dev              # Next.js dev server
-pnpm test             # Jest with --coverage
-npx playwright test   # E2E
+# Run backend tests only
+pnpm --filter server test
 
-# Infra (after configuring AWS creds)
-cd terraform
-terraform init
-terraform plan
-terraform apply
-
-# Container builds (replicates CI)
-docker build -t shopsmart-server:dev ./server
-docker build -t shopsmart-client:dev ./client
-
-# Pipeline triggers
-gh workflow run "Rubric: EKS Production Deployment"
-gh run watch
+# Run frontend tests only
+pnpm --filter shopsmart-frontend test
 ```
 
+## 🌐 API Documentation
+
+ShopSmart includes a comprehensive OpenAPI 3.0 specification. 
+When the server is running, navigate to **[http://localhost:5001/api-docs](http://localhost:5001/api-docs)** to view the interactive Swagger UI playground.
+
+Alternatively, you can view the raw YAML specification in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml).
+
+## 🚢 Deployment Strategy
+
+ShopSmart is designed to be cloud-agnostic. The recommended deployment topology is:
+- **Frontend**: Vercel
+- **Backend**: Railway or Fly.io (Dockerized)
+- **Database**: Neon (Serverless Postgres)
+- **Cache/Queue**: Upstash (Serverless Redis)
+
+For production deployment, ensure the environment variable `NODE_ENV=production` is set, and utilize the included multi-stage `Dockerfile`s for optimized image builds.
+
 ---
-
-## Troubleshooting
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Backend TypeScript errors after pulling | Prisma client is stale | `cd server && pnpm db:generate` |
-| Docker compose port already in use | Another service on 3000/5001/5432/6379 | `docker compose down -v` then retry |
-| `terraform apply` fails with `AlreadyExists` | Resource exists, not in state | The `Terraform Import Existing Resources` step in `rubric-deployment.yml` adopts existing resources. Run the workflow once to import. |
-| EKS LoadBalancer pending forever | Subnets missing `kubernetes.io/role/elb` tag | Re-apply terraform — `vpc.tf` now sets the tag |
-| ECS service stuck pending | Task pulling from ECR but no image | Make sure Phase 3 (build & push) ran successfully before deploy |
-| GitHub Actions `AWS_REGION` empty | Secret not synced | `./scripts/sync_all_secrets.sh` |
-
-For deeper failure modes, see [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md#debugging).
-
----
-
-## License
-
-See [`LICENSE`](./LICENSE).
+*Developed as a production-grade demonstration of scalable e-commerce architecture.*

@@ -1,0 +1,168 @@
+openapi: 3.0.0
+info:
+  title: ShopSmart API
+  description: E-commerce API for ShopSmart with Cart, Checkout, and Webhook flows.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5001/api
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User registered successfully
+  /auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+  /products:
+    get:
+      summary: List products
+      security: []
+      responses:
+        '200':
+          description: List of products
+  /cart:
+    get:
+      summary: Get current user's cart
+      responses:
+        '200':
+          description: Cart retrieved successfully
+  /cart/items:
+    post:
+      summary: Add item to cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId:
+                  type: string
+                quantity:
+                  type: integer
+      responses:
+        '200':
+          description: Item added
+  /checkout/initialize:
+    post:
+      summary: Initialize a checkout and create a payment order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [addressId, gatewayProvider]
+              properties:
+                addressId:
+                  type: string
+                gatewayProvider:
+                  type: string
+                  enum: [RAZORPAY, STRIPE]
+                couponCode:
+                  type: string
+      responses:
+        '200':
+          description: Checkout initialized
+  /payment/verify:
+    post:
+      summary: Verify frontend payment signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [razorpay_order_id, razorpay_payment_id, razorpay_signature]
+              properties:
+                razorpay_order_id:
+                  type: string
+                razorpay_payment_id:
+                  type: string
+                razorpay_signature:
+                  type: string
+      responses:
+        '200':
+          description: Payment verified
+  /payment/webhook:
+    post:
+      summary: Razorpay Webhook
+      security: []
+      description: Must receive raw body to compute HMAC signature.
+      responses:
+        '200':
+          description: Webhook queued or skipped

@@ -5,6 +5,9 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import logger from './utils/logger';
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
+import path from "path";
 import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import cartRoutes from './routes/cartRoutes';
@@ -73,6 +76,14 @@ app.get('/api/health', healthCheckLimiter, async (req: Request, res: Response) =
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'ShopSmart Backend Service v4 (TypeScript + Redis)', version: '4.0.0' });
 });
+
+// Swagger Documentation
+try {
+  const swaggerDocument = YAML.load(path.join(__dirname, "../docs/api/openapi.yaml"));
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (error) {
+  console.warn("Swagger spec could not be loaded. Please ensure docs/api/openapi.yaml exists.");
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
