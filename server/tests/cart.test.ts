@@ -5,8 +5,156 @@ import { Role } from '@prisma/client';
 import app from '../src/server';
 import prisma from '../src/config/database';
 import redis from '../src/utils/redis';
+import {
+  addToCartSchema,
+  updateCartItemSchema,
+  mergeCartSchema,
+  productIdParamSchema,
+} from '../src/modules/cart/cart.validator';
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-access-secret';
+
+// ═══════════════════════════════════════════════════════════════
+// UNIT TESTS — Zod Validation Schemas
+// ═══════════════════════════════════════════════════════════════
+
+describe('Cart Zod Validation — Unit Tests', () => {
+  describe('addToCartSchema', () => {
+    it('should accept valid input', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 3,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject non-UUID productId', () => {
+      const result = addToCartSchema.safeParse({
+        productId: 'not-a-uuid',
+        quantity: 1,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject zero quantity', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 0,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject negative quantity', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: -5,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject float quantity', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 2.5,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject quantity above 10', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 11,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing productId', () => {
+      const result = addToCartSchema.safeParse({ quantity: 1 });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing quantity', () => {
+      const result = addToCartSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('updateCartItemSchema', () => {
+    it('should accept valid quantity', () => {
+      const result = updateCartItemSchema.safeParse({ quantity: 5 });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject zero quantity', () => {
+      const result = updateCartItemSchema.safeParse({ quantity: 0 });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject quantity above 10', () => {
+      const result = updateCartItemSchema.safeParse({ quantity: 11 });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject float quantity', () => {
+      const result = updateCartItemSchema.safeParse({ quantity: 3.7 });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('mergeCartSchema', () => {
+    it('should accept valid items array', () => {
+      const result = mergeCartSchema.safeParse({
+        items: [
+          { productId: '550e8400-e29b-41d4-a716-446655440000', quantity: 2 },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject empty items array', () => {
+      const result = mergeCartSchema.safeParse({ items: [] });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject items with invalid UUID', () => {
+      const result = mergeCartSchema.safeParse({
+        items: [{ productId: 'bad-id', quantity: 1 }],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject items with quantity above 10', () => {
+      const result = mergeCartSchema.safeParse({
+        items: [
+          { productId: '550e8400-e29b-41d4-a716-446655440000', quantity: 15 },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('productIdParamSchema', () => {
+    it('should accept valid UUID', () => {
+      const result = productIdParamSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject non-UUID string', () => {
+      const result = productIdParamSchema.safeParse({
+        productId: 'not-valid',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INTEGRATION TESTS — Cart API
+// ═══════════════════════════════════════════════════════════════
 
 describe('ShopSmart — Cart API Tests', () => {
   const suffix = Math.random().toString(36).substring(2, 8);
@@ -253,6 +401,15 @@ describe('ShopSmart — Cart API Tests', () => {
 
       expect(res.status).toBe(400);
     });
+
+    it('should return 404 when updating a product not in the cart', async () => {
+      const res = await request(app)
+        .put(`/api/cart/items/${product2Id}`)
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({ quantity: 1 });
+
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('DELETE /api/cart/items/:productId', () => {
@@ -265,6 +422,14 @@ describe('ShopSmart — Cart API Tests', () => {
       expect(res.body.data.items).toHaveLength(0);
       expect(res.body.data.totalItems).toBe(0);
       expect(res.body.data.subtotal).toBe('0.00');
+    });
+
+    it('should return 404 when removing a product not in the cart', async () => {
+      const res = await request(app)
+        .delete(`/api/cart/items/${product2Id}`)
+        .set('Authorization', `Bearer ${customerToken}`);
+
+      expect(res.status).toBe(404);
     });
   });
 
@@ -294,14 +459,24 @@ describe('ShopSmart — Cart API Tests', () => {
       const items = res.body.data.items;
       expect(items).toHaveLength(3);
 
-      const item1 = items.find((i: any) => i.productId === product1Id);
+      const item1 = items.find((i: { productId: string }) => i.productId === product1Id);
       expect(item1.quantity).toBe(3);
 
-      const item2 = items.find((i: any) => i.productId === product2Id);
+      const item2 = items.find((i: { productId: string }) => i.productId === product2Id);
       expect(item2.quantity).toBe(4);
 
-      const itemLowStock = items.find((i: any) => i.productId === productLowStockId);
+      const itemLowStock = items.find((i: { productId: string }) => i.productId === productLowStockId);
       expect(itemLowStock.quantity).toBe(3); // capped at stock (3)
+    });
+
+    it('should reject merge with empty items array', async () => {
+      const res = await request(app)
+        .post('/api/cart/merge')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({ items: [] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
     });
   });
 

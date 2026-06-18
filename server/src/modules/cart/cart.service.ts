@@ -207,6 +207,11 @@ class CartService {
    * Merges guest items into user's authenticated cart.
    */
   async mergeCart(userId: string, guestItems: Array<{ productId: string; quantity: number }>): Promise<CartResponseDto> {
+    // Defense-in-depth: do not wipe existing cart if guest payload is empty
+    if (guestItems.length === 0) {
+      return this.getCart(userId);
+    }
+
     await prisma.$transaction(async (tx) => {
       const cart = await this.getOrCreateCart(userId, tx);
 

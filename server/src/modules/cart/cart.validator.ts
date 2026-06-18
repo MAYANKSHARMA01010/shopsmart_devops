@@ -20,6 +20,7 @@ export const mergeCartSchema = z.object({
         .max(10, { message: "Maximum quantity per item in a cart is 10." }),
     })
   )
+  .min(1, { message: "Guest cart must contain at least 1 item to merge." })
   .max(50, { message: "Cannot merge guest cart containing more than 50 unique items." }),
 });
 
