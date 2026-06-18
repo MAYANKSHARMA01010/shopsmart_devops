@@ -2,8 +2,11 @@ import { useState, useCallback, useEffect } from "react";
 import { productService } from "../services/productService";
 import type { Product, ProductData } from "../types/productSchema";
 
-export function useProducts(filters: { search: string; category: string }) {
+export function useProducts(filters: { search?: string; category?: string; minPrice?: string; maxPrice?: string; sort?: string; page?: string; limit?: string }) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -18,15 +21,23 @@ export function useProducts(filters: { search: string; category: string }) {
       const response = await productService.getAll({
         search: filters.search || undefined,
         category: filters.category !== "all" ? filters.category : undefined,
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        sort: filters.sort || undefined,
+        page: filters.page || "1",
+        limit: filters.limit || "12",
       });
       // Unwrap from { data: Product[], total: number } envelope
       setProducts(response.data);
+      setPage(response.page);
+      setTotalPages(response.totalPages);
+      setTotal(response.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
-  }, [filters.search, filters.category]);
+  }, [filters.search, filters.category, filters.minPrice, filters.maxPrice, filters.sort, filters.page, filters.limit]);
 
   useEffect(() => {
     const t = setTimeout(fetchProducts, 300);
@@ -74,6 +85,9 @@ export function useProducts(filters: { search: string; category: string }) {
     success,
     adding,
     deletingId,
+    page,
+    totalPages,
+    total,
     addProduct,
     deleteProduct,
     refresh: fetchProducts,

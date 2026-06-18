@@ -9,11 +9,17 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
     search: req.query.search as string | undefined,
     page: req.query.page as string | undefined,
     limit: req.query.limit as string | undefined,
+    minPrice: req.query.minPrice as string | undefined,
+    maxPrice: req.query.maxPrice as string | undefined,
+    sort: req.query.sort as string | undefined,
   });
 
   res.json({
-    data: products,
-    total: products.length,
+    data: products.data,
+    total: products.total,
+    page: products.page,
+    totalPages: products.totalPages,
+    limit: products.limit,
   });
 });
 

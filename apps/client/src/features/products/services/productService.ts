@@ -6,6 +6,9 @@ import type { Product, ProductData } from "../types/productSchema";
 interface ApiListResponse<T> {
   data: T[];
   total: number;
+  page: number;
+  totalPages: number;
+  limit: number;
 }
 
 interface ApiSingleResponse<T> {
@@ -20,6 +23,11 @@ export const productService = {
   getAll: (params?: {
     category?: string;
     search?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    sort?: string;
+    page?: string;
+    limit?: string;
   }): Promise<ApiListResponse<Product>> =>
     apiClient.get("/products", { params }),
 

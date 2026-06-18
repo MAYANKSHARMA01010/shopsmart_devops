@@ -21,23 +21,21 @@ class ProductService {
   async getAllProducts(filters: {
     category?: string;
     search?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    sort?: string;
     page?: string;
     limit?: string;
-  }): Promise<ProductWithCategory[]> {
-    const { category, search } = filters;
-
-    // Try cache if no filters
-    if (!category && !search) {
-      try {
-        const cached = await redis.get(this.CACHE_KEY);
-        if (cached) {
-          logger.info('Serving products from cache');
-          return JSON.parse(cached);
-        }
-      } catch {
-        logger.warn('Redis Cache Error (Get): Continuing with Database');
-      }
-    }
+  }): Promise<{
+    data: ProductWithCategory[];
+    total: number;
+    page: number;
+    totalPages: number;
+    limit: number;
+  }> {
+    const { category, search, minPrice, maxPrice, sort, page = '1', limit = '12' } = filters;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 12);
 
     const where: Prisma.ProductWhereInput = { isVisible: true };
 
@@ -54,22 +52,56 @@ class ProductService {
       ];
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: { category: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    // Cache only un-filtered results
-    if (!category && !search) {
-      try {
-        await redis.setex(this.CACHE_KEY, this.CACHE_TTL, JSON.stringify(products));
-      } catch {
-        // Silent — caching is best-effort
+    // Price range filtering
+    if (minPrice || maxPrice) {
+      where.basePrice = {};
+      if (minPrice && !isNaN(Number(minPrice))) {
+        where.basePrice.gte = Number(minPrice);
+      }
+      if (maxPrice && !isNaN(Number(maxPrice))) {
+        where.basePrice.lte = Number(maxPrice);
       }
     }
 
-    return products;
+    // Sorting
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
+    if (sort) {
+      switch (sort) {
+        case 'price_asc':
+          orderBy = { basePrice: 'asc' };
+          break;
+        case 'price_desc':
+          orderBy = { basePrice: 'desc' };
+          break;
+        case 'oldest':
+          orderBy = { createdAt: 'asc' };
+          break;
+        case 'newest':
+        default:
+          orderBy = { createdAt: 'desc' };
+          break;
+      }
+    }
+
+    // Execute query with pagination
+    const [products, total] = await prisma.$transaction([
+      prisma.product.findMany({
+        where,
+        include: { category: true },
+        orderBy,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    return {
+      data: products,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      limit: limitNum,
+    };
   }
 
   async getProductById(id: string): Promise<ProductWithCategory> {

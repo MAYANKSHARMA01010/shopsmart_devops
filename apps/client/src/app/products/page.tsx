@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useProducts } from "../../features/products/hooks/useProducts";
 import type { ProductData } from "../../features/products/types/productSchema";
 import { formatPrice } from "../../features/products/types/productSchema";
@@ -85,10 +86,61 @@ function SkeletonCard() {
 
 
 
-export default function ProductsPage() {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+function ProductsPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const urlSearch = searchParams.get("search") || "";
+  const urlCategory = searchParams.get("category") || "all";
+  const urlMinPrice = searchParams.get("minPrice") || "";
+  const urlMaxPrice = searchParams.get("maxPrice") || "";
+  const urlSort = searchParams.get("sort") || "newest";
+  const urlPage = searchParams.get("page") || "1";
+
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const [minPriceInput, setMinPriceInput] = useState(urlMinPrice);
+  const [maxPriceInput, setMaxPriceInput] = useState(urlMaxPrice);
   const [showForm, setShowForm] = useState(false);
+
+  const updateQuery = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === "" || (key === "category" && value === "all") || (key === "page" && value === "1") || (key === "sort" && value === "newest")) {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+      // Reset page to 1 on any filter change
+      if (!updates.page && params.has("page")) {
+        params.delete("page");
+      }
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== urlSearch) {
+        updateQuery({ search: searchInput });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput, urlSearch, updateQuery]);
+
+  // Debounce Price Range
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (minPriceInput !== urlMinPrice || maxPriceInput !== urlMaxPrice) {
+        updateQuery({ minPrice: minPriceInput, maxPrice: maxPriceInput });
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [minPriceInput, maxPriceInput, urlMinPrice, urlMaxPrice, updateQuery]);
 
   const {
     products,
@@ -97,11 +149,21 @@ export default function ProductsPage() {
     success,
     adding,
     deletingId,
+    page,
+    totalPages,
+    total,
     addProduct,
     deleteProduct,
-  } = useProducts({ search, category });
+  } = useProducts({
+    search: urlSearch,
+    category: urlCategory,
+    minPrice: urlMinPrice,
+    maxPrice: urlMaxPrice,
+    sort: urlSort,
+    page: urlPage,
+  });
 
-  // basePrice comes from API as a Decimal-serialized string (e.g. "7999.00")
+  // Calculate stats from loaded page (for enterprise logic, stats might be separate query)
   const totalValue = products.reduce(
     (sum, p) => sum + parseFloat(formatPrice(p.basePrice)) * p.stock,
     0
@@ -113,7 +175,7 @@ export default function ProductsPage() {
     if (result) setShowForm(false);
   }
 
-  const isFiltered = !!(search || category !== "all");
+  const isFiltered = !!(urlSearch || urlCategory !== "all" || urlMinPrice || urlMaxPrice);
 
   return (
     <div className="container">
@@ -124,7 +186,7 @@ export default function ProductsPage() {
           <p>
             {loading
               ? "Loading catalog…"
-              : `${products.length} product${products.length !== 1 ? "s" : ""} in catalog`}
+              : `${total} product${total !== 1 ? "s" : ""} in catalog`}
           </p>
         </div>
 
@@ -139,25 +201,25 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      {/* Stats — only shown when products exist and not loading */}
-      {!loading && products.length > 0 && (
+      {/* Stats */}
+      {!loading && total > 0 && (
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon"><IconBox /></div>
-            <div className="stat-value">{products.length}</div>
+            <div className="stat-value">{total}</div>
             <div className="stat-label">Total Products</div>
           </div>
           <div className="stat-card">
             <div className="stat-icon"><IconCheckCircle /></div>
             <div className="stat-value">{inStock}</div>
-            <div className="stat-label">In Stock</div>
+            <div className="stat-label">In Stock (Current Page)</div>
           </div>
           <div className="stat-card">
             <div className="stat-icon"><IconDollar /></div>
             <div className="stat-value">
               ₹{totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
             </div>
-            <div className="stat-label">Inventory Value</div>
+            <div className="stat-label">Inventory Value (Current Page)</div>
           </div>
         </div>
       )}
@@ -167,26 +229,58 @@ export default function ProductsPage() {
       {success && <div className="alert alert-success" role="status">{success}</div>}
 
       {/* Filter bar */}
-      <div className="filter-bar">
+      <div className="filter-bar" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
         <input
           id="product-search"
           className="filter-search"
           type="search"
           placeholder="Search products…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           aria-label="Search products"
         />
         <CategoryFilter
           id="category-filter"
           className="filter-select"
-          value={category}
-          onChange={setCategory}
+          value={urlCategory}
+          onChange={(val) => updateQuery({ category: val })}
           includeAll
         />
+        <select
+          className="filter-select"
+          value={urlSort}
+          onChange={(e) => updateQuery({ sort: e.target.value })}
+          aria-label="Sort products"
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="price_asc">Price: Low to High</option>
+          <option value="price_desc">Price: High to Low</option>
+        </select>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <input
+            type="number"
+            placeholder="Min ₹"
+            value={minPriceInput}
+            onChange={(e) => setMinPriceInput(e.target.value)}
+            className="filter-search"
+            style={{ width: "100px" }}
+            aria-label="Minimum Price"
+          />
+          <span style={{ color: "var(--color-text-muted)" }}>-</span>
+          <input
+            type="number"
+            placeholder="Max ₹"
+            value={maxPriceInput}
+            onChange={(e) => setMaxPriceInput(e.target.value)}
+            className="filter-search"
+            style={{ width: "100px" }}
+            aria-label="Maximum Price"
+          />
+        </div>
       </div>
 
-      {/* Loading → 6 skeleton cards that match real card dimensions */}
+      {/* Loading Skeleton */}
       {loading ? (
         <div className="skeleton-grid" aria-label="Loading products" aria-busy="true">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -213,7 +307,12 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => { setSearch(""); setCategory("all"); }}
+                  onClick={() => {
+                    setSearchInput("");
+                    setMinPriceInput("");
+                    setMaxPriceInput("");
+                    updateQuery({ search: null, category: "all", minPrice: null, maxPrice: null });
+                  }}
                 >
                   Clear filters
                 </button>
@@ -243,19 +342,42 @@ export default function ProductsPage() {
 
       /* Product grid */
       ) : (
-        <div className="products-grid">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onDelete={deleteProduct}
-              deleting={deletingId === product.id}
-            />
-          ))}
-        </div>
+        <>
+          <div className="products-grid">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onDelete={deleteProduct}
+                deleting={deletingId === product.id}
+              />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1rem", marginTop: "2rem" }}>
+              <button
+                className="btn btn-secondary"
+                disabled={page <= 1}
+                onClick={() => updateQuery({ page: String(page - 1) })}
+              >
+                Previous
+              </button>
+              <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</span>
+              <button
+                className="btn btn-secondary"
+                disabled={page >= totalPages}
+                onClick={() => updateQuery({ page: String(page + 1) })}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Add Product form — lives below the grid, revealed by toggle */}
+      {/* Add Product form */}
       {showForm && (
         <div id="add" className="form-reveal" style={{ marginTop: "var(--space-8)" }}>
           <ProductForm onSubmit={handleAddProduct} loading={adding} />
@@ -264,5 +386,13 @@ export default function ProductsPage() {
 
       <div style={{ paddingBottom: "var(--space-16)" }} />
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="container"><div className="skeleton-grid" aria-busy="true" style={{ marginTop: '2rem' }}>{Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}</div></div>}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }
