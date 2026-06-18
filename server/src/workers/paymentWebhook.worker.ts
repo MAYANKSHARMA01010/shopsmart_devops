@@ -84,3 +84,9 @@ export const paymentWebhookWorker = new Worker('payment-webhook', processPayment
 paymentWebhookWorker.on('failed', (job, err) => {
   logger.error('Webhook processing failed', { jobId: job?.id, error: err.message });
 });
+
+paymentWebhookWorker.on('error', (err) => {
+  if ((err as any).code !== 'ECONNREFUSED') {
+    logger.error('Worker error:', err.message);
+  }
+});
