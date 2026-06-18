@@ -82,18 +82,30 @@ For more detailed diagrams, see the [`docs/architecture`](./docs/architecture) f
 
 ```text
 shopsmart/
-├── client/                 # Next.js Frontend App
+├── .github/                # CI/CD workflows and GitHub templates
+├── client/                 # Next.js Frontend (Feature-based Architecture)
+│   ├── src/
+│   │   ├── app/            # Next.js App Router routing
+│   │   ├── features/       # Feature-sliced domains (auth, products, checkout, etc.)
+│   │   ├── shared/         # Shared UI components and hooks
+│   │   └── lib/            # API client and external integrations
 ├── server/                 # Express API Backend
 │   ├── src/
-│   │   ├── modules/        # Domain-driven feature modules (auth, cart, checkout, payment, etc.)
+│   │   ├── modules/        # Domain-driven feature modules
 │   │   ├── queues/         # BullMQ queue definitions
-│   │   ├── workers/        # Background job processors
+│   │   └── workers/        # Background job processors
 │   └── prisma/             # Database schema and migrations
-├── packages/types/         # Shared TypeScript interfaces and schemas
-├── docs/                   # Architecture diagrams and API specs
-│   └── architecture/       # Mermaid diagrams for system flows
-├── docker-compose.yml      # Local development infrastructure
-└── .github/workflows/      # CI/CD pipelines
+├── packages/               # Monorepo Shared Packages
+│   ├── shared-types/       # Shared TypeScript interfaces and Zod schemas
+│   └── shared-utils/       # Shared utility functions
+├── terraform/              # Infrastructure as Code (AWS)
+│   ├── environments/       # Environment configurations (e.g. production)
+│   └── modules/            # Reusable IaC modules (compute, networking, security)
+├── scripts/                # Development and deployment bash scripts
+├── docs/                   # Project Documentation
+│   ├── adr/                # Architecture Decision Records
+│   └── architecture/       # Mermaid diagrams and high-level docs
+└── docker-compose.yml      # Local development infrastructure
 ```
 
 ## 🚀 Getting Started
