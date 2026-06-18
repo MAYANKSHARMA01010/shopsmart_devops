@@ -231,6 +231,14 @@ model Order {
   notes      String?
   items      OrderItem[]
 
+  // Snapshots for historical integrity
+  shippingAddressSnapshot Json?
+  billingAddressSnapshot  Json?
+
+  // Relations
+  payments  Payment[]
+  auditLogs OrderAuditLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -260,4 +268,96 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@map("order_items")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHECKOUT & PAYMENT MODELS
+// ═══════════════════════════════════════════════════════════════
+
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+model Coupon {
+  id               String       @id @default(uuid())
+  code             String       @unique
+  type             DiscountType
+  value            Decimal      @db.Decimal(10, 2)
+  maxDiscountLimit Decimal?     @db.Decimal(10, 2)
+  maxUsageLimit    Int
+  usedCount        Int          @default(0)
+  maxUsagePerUser  Int          @default(1)
+  isActive         Boolean      @default(true)
+  startDate        DateTime
+  endDate          DateTime
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("coupons")
+}
+
+enum PaymentGatewayProvider {
+  RAZORPAY
+  STRIPE
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id               String                   @id @default(uuid())
+  orderId          String
+  order            Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  gateway          PaymentGatewayProvider
+  gatewayOrderId   String                   @unique
+  gatewayPaymentId String?                  @unique
+  amount           Decimal                  @db.Decimal(10, 2)
+  currency         String                   @default("INR")
+  status           PaymentTransactionStatus @default(PENDING)
+  errorMessage     String?
+  rawResponse      Json?
+
+  // Observability Fields
+  attemptCount      Int       @default(1)
+  providerLatency   Int?
+  verifiedAt        DateTime?
+  clientVerifiedAt  DateTime?
+  webhookReceivedAt DateTime?
+  failureReason     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
+}
+
+model ProcessedWebhook {
+  id          String   @id
+  gateway     String
+  status      String
+  processedAt DateTime @default(now())
+
+  @@map("processed_webhooks")
+}
+
+model OrderAuditLog {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  action    String
+  oldState  String?
+  newState  String
+  actorId   String
+  actorType String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([actorId])
+  @@map("order_audit_logs")
 }
