@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/AuthContext";
 
 const links = [
   { href: "/",        label: "Home" },

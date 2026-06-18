@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect } from 'react';
 import { AddressSelector } from '../../features/checkout/components/AddressSelector';
 import { CouponInput } from '../../features/checkout/components/CouponInput';

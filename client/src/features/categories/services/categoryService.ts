@@ -1,5 +1,5 @@
 import apiClient from "../../../lib/apiClient";
-import type { ApiResponse } from "@shopsmart/types";
+import type { ApiResponse } from "@shopsmart/shared-types";
 import type {
   CategoryCreateInput,
   CategoryNode,

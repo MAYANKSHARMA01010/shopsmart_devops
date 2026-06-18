@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { AuthProvider } from "@/context/AuthContext";
+import { Navbar } from "@/shared/components/Navbar";
+import { AuthProvider } from "@/features/auth/AuthContext";
 
 export const metadata: Metadata = {
   title: "ShopSmart — Product Manager",

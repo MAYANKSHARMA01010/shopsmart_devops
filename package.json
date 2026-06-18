@@ -6,7 +6,7 @@
     "dev": "pnpm --parallel -r dev",
     "dev:server": "pnpm --filter shopsmart-server dev",
     "dev:client": "pnpm --filter shopsmart-frontend dev",
-    "build": "pnpm --filter shopsmart-frontend build",
+    "build": "pnpm --parallel -r build",
     "db:generate": "pnpm --filter shopsmart-server db:generate",
     "db:migrate": "pnpm --filter shopsmart-server db:migrate",
     "db:studio": "pnpm --filter shopsmart-server db:studio",
@@ -18,6 +18,6 @@
     "install:all": "pnpm install"
   },
   "devDependencies": {
-    "@shopsmart/types": "workspace:*"
+    "@shopsmart/shared-types": "workspace:*"
   }
 }

@@ -7,7 +7,7 @@ interface ProductCardProps {
   deleting: boolean;
 }
 
-/* ── SVG placeholder icon ─────────────────────────────────────────────────── */
+
 
 function IconProductPlaceholder() {
   return (
@@ -30,7 +30,7 @@ function IconProductPlaceholder() {
   );
 }
 
-/* ── Stock helpers ────────────────────────────────────────────────────────── */
+
 
 function getStockClass(stock: number): string {
   if (stock === 0) return "out-stock";
@@ -44,7 +44,7 @@ function getStockLabel(stock: number): string {
   return `${stock} in stock`;
 }
 
-/* ── Component ────────────────────────────────────────────────────────────── */
+
 
 export function ProductCard({ product, onDelete, deleting }: ProductCardProps) {
   return (

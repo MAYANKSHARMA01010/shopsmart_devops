@@ -11,7 +11,7 @@ type HealthData = {
   database?: string;
 };
 
-/* ── SVG Icon components ─────────────────────────────────────────────────── */
+
 
 function IconBolt() {
   return (
@@ -76,7 +76,7 @@ function IconClock() {
   );
 }
 
-/* ── Feature data ─────────────────────────────────────────────────────────── */
+
 
 const features = [
   {
@@ -101,7 +101,7 @@ const features = [
   },
 ];
 
-/* ── Page ─────────────────────────────────────────────────────────────────── */
+
 
 export default function HomePage() {
   const [health, setHealth] = useState<HealthData | null>(null);

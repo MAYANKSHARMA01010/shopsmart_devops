@@ -12,7 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@shopsmart/types": "workspace:*",
+    "@shopsmart/shared-types": "workspace:*",
     "@tanstack/react-query": "^5.101.0",
     "axios": "^1.7.9",
     "next": "16.2.3",

@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useProducts } from "../../features/products/hooks/useProducts";
 import type { ProductData } from "../../features/products/types/productSchema";
 import { formatPrice } from "../../features/products/types/productSchema";
-import { ProductCard } from "@/components/ProductCard";
-import { ProductForm } from "@/components/ProductForm";
-import { CategoryFilter } from "@/components/categories/CategoryFilter";
+import { ProductCard } from "@/features/products/components/ProductCard";
+import { ProductForm } from "@/features/products/components/ProductForm";
+import { CategoryFilter } from "@/features/categories/components/CategoryFilter";
 
-/* ── SVG icons ───────────────────────────────────────────────────────────── */
+
 
 function IconBox({ size = 18 }: { size?: number }) {
   return (
@@ -55,9 +55,7 @@ function IconMinus() {
   );
 }
 
-/* ── Skeleton card ─────────────────────────────────────────────────────────
-   Matches product-card dimensions exactly — no layout shift on load.
-   ─────────────────────────────────────────────────────────────────────── */
+
 
 function SkeletonCard() {
   return (
@@ -85,7 +83,7 @@ function SkeletonCard() {
   );
 }
 
-/* ── Page ─────────────────────────────────────────────────────────────────── */
+
 
 export default function ProductsPage() {
   const [search, setSearch] = useState("");
