@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@shopsmart/types": "workspace:*",
+    "@tanstack/react-query": "^5.101.0",
     "axios": "^1.7.9",
     "next": "16.2.3",
     "react": "^19",
     "react-dom": "^19",
+    "react-hot-toast": "^2.6.0",
     "zod": "^3.24.1",
     "zustand": "^5.0.14"
   },
