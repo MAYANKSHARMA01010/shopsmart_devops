@@ -235,6 +235,8 @@ importers:
         specifier: ^13.1.3
         version: 13.1.3
 
+  packages/observability: {}
+
 packages:
 
   '@adobe/css-tools@4.4.4':

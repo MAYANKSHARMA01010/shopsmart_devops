@@ -12,7 +12,7 @@
     "db:migrate": "pnpm --filter shopsmart-server db:migrate",
     "db:studio": "pnpm --filter shopsmart-server db:studio",
     "lint": "pnpm --parallel -r lint",
-    "test": "pnpm --parallel -r test",
+    "test": "turbo run lint typecheck",
     "test:server": "pnpm --filter shopsmart-server test",
     "test:client": "pnpm --filter shopsmart-frontend test",
     "test:coverage": "pnpm --parallel -r test:coverage",

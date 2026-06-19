@@ -29,8 +29,8 @@ export default defineConfig({
       exclude: ['src/server.ts', 'src/**/*.d.ts'],
     },
     setupFiles: ['tests/setup.ts'],
-    // Give integration tests enough time to hit the DB
-    testTimeout: 15000,
-    hookTimeout: 15000,
+    // Give integration tests enough time to hit the remote Neon DB
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
 });

@@ -77,8 +77,13 @@ describe('ShopSmart — Category API Tests', () => {
   });
 
   afterAll(async () => {
+    // Delete products first to avoid FK constraint violations.
+    // Also delete by categoryId in case beforeAll timed out after creating
+    // the category but before productId was captured.
     if (productId) {
       await prisma.product.delete({ where: { id: productId } });
+    } else if (categoryWithProductId) {
+      await prisma.product.deleteMany({ where: { categoryId: categoryWithProductId } });
     }
 
     if (childCategoryId) {
