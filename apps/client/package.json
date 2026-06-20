@@ -13,13 +13,17 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
     "@shopsmart/api-contracts": "workspace:*",
     "@tanstack/react-query": "^5.101.0",
     "axios": "^1.7.9",
+    "lucide-react": "^1.21.0",
     "next": "16.2.3",
     "react": "^19",
     "react-dom": "^19",
+    "react-hook-form": "^7.80.0",
     "react-hot-toast": "^2.6.0",
+    "recharts": "^3.8.1",
     "zod": "^3.24.1",
     "zustand": "^5.0.14"
   },

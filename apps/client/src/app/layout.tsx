@@ -4,6 +4,8 @@ import { Navbar } from "@/components/layouts/Navbar";
 import { Footer } from "@/components/layouts/Footer";
 import { AuthProvider } from "@/features/auth/AuthContext";
 
+import { Toaster } from "react-hot-toast";
+
 export const metadata: Metadata = {
   title: "ShopSmart — Product Manager",
   description: "Manage your product catalog with a modern full-stack application built on Next.js, Express, and PostgreSQL.",
@@ -40,13 +42,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <AuthProvider>
           <div className="page-wrapper">
             <Navbar />
             <main style={{ flex: 1 }}>{children}</main>
             <Footer />
           </div>
+          <Toaster position="bottom-right" />
         </AuthProvider>
       </body>
     </html>
