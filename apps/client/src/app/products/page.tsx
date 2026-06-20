@@ -9,6 +9,7 @@ import { formatPrice } from "../../features/products/types/productSchema";
 import { ProductCard } from "@/features/products/components/ProductCard";
 import { ProductForm } from "@/features/products/components/ProductForm";
 import { CategoryFilter } from "@/features/categories/components/CategoryFilter";
+import { useQueryParams } from "@/hooks/useQueryParams";
 
 
 
@@ -88,9 +89,7 @@ function SkeletonCard() {
 
 
 function ProductsPageContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { searchParams, setParams } = useQueryParams();
 
   const urlSearch = searchParams.get("search") || "";
   const urlCategory = searchParams.get("category") || "all";
@@ -104,44 +103,44 @@ function ProductsPageContent() {
   const [maxPriceInput, setMaxPriceInput] = useState(urlMaxPrice);
   const [showForm, setShowForm] = useState(false);
 
-  const updateQuery = useCallback(
+  const updateFilters = useCallback(
     (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === null || value === "" || (key === "category" && value === "all") || (key === "page" && value === "1") || (key === "sort" && value === "newest")) {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      });
-      // Reset page to 1 on any filter change
-      if (!updates.page && params.has("page")) {
-        params.delete("page");
+      const sanitizedUpdates: Record<string, string | null> = { ...updates };
+      
+      // Convert default values to null so they are removed from the URL
+      if (updates.category === "all") sanitizedUpdates.category = null;
+      if (updates.sort === "newest") sanitizedUpdates.sort = null;
+      if (updates.page === "1") sanitizedUpdates.page = null;
+
+      // Reset page to 1 on any filter change (if not explicitly updating page)
+      if (!updates.page && searchParams.has("page")) {
+        sanitizedUpdates.page = null;
       }
-      router.push(`${pathname}?${params.toString()}`);
+
+      setParams(sanitizedUpdates);
     },
-    [searchParams, pathname, router]
+    [setParams, searchParams]
   );
 
   // Debounce Search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInput !== urlSearch) {
-        updateQuery({ search: searchInput });
+        updateFilters({ search: searchInput });
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchInput, urlSearch, updateQuery]);
+  }, [searchInput, urlSearch, updateFilters]);
 
   // Debounce Price Range
   useEffect(() => {
     const timer = setTimeout(() => {
       if (minPriceInput !== urlMinPrice || maxPriceInput !== urlMaxPrice) {
-        updateQuery({ minPrice: minPriceInput, maxPrice: maxPriceInput });
+        updateFilters({ minPrice: minPriceInput, maxPrice: maxPriceInput });
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, [minPriceInput, maxPriceInput, urlMinPrice, urlMaxPrice, updateQuery]);
+  }, [minPriceInput, maxPriceInput, urlMinPrice, urlMaxPrice, updateFilters]);
 
   const {
     products,
@@ -249,13 +248,13 @@ function ProductsPageContent() {
           id="category-filter"
           className="filter-select"
           value={urlCategory}
-          onChange={(val) => updateQuery({ category: val })}
+          onChange={(val) => updateFilters({ category: val })}
           includeAll
         />
         <select
           className="filter-select"
           value={urlSort}
-          onChange={(e) => updateQuery({ sort: e.target.value })}
+          onChange={(e) => updateFilters({ sort: e.target.value })}
           aria-label="Sort products"
         >
           <option value="newest">Newest First</option>
@@ -317,7 +316,7 @@ function ProductsPageContent() {
                     setSearchInput("");
                     setMinPriceInput("");
                     setMaxPriceInput("");
-                    updateQuery({ search: null, category: "all", minPrice: null, maxPrice: null });
+                    updateFilters({ search: null, category: "all", minPrice: null, maxPrice: null });
                   }}
                 >
                   Clear filters
@@ -368,7 +367,7 @@ function ProductsPageContent() {
               <button
                 className="btn btn-secondary"
                 disabled={page <= 1}
-                onClick={() => updateQuery({ page: String(page - 1) })}
+                onClick={() => updateFilters({ page: String(page - 1) })}
               >
                 Previous
               </button>
@@ -376,7 +375,7 @@ function ProductsPageContent() {
               <button
                 className="btn btn-secondary"
                 disabled={page >= totalPages}
-                onClick={() => updateQuery({ page: String(page + 1) })}
+                onClick={() => updateFilters({ page: String(page + 1) })}
               >
                 Next
               </button>
