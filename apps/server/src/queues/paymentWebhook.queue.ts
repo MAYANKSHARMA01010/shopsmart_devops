@@ -1,4 +1,4 @@
-import { Queue, Worker } from 'bullmq';
+import { Queue } from 'bullmq';
 import redis from '../shared/utils/redis';
 import logger from '../shared/utils/logger';
 

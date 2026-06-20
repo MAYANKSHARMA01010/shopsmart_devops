@@ -21,8 +21,11 @@ export class CheckoutRepository {
     });
   }
 
-  async executeTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return prisma.$transaction(fn);
+  async executeTransaction<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { maxWait?: number; timeout?: number }
+  ): Promise<T> {
+    return prisma.$transaction(fn, options);
   }
 
   async lockProductsForUpdate(productIds: string[], tx: Prisma.TransactionClient) {

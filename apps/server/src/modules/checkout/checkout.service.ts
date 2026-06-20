@@ -134,8 +134,12 @@ export class CheckoutService {
 
       // 10. Clear Cart
       await checkoutRepository.clearCartItems(cart.id, tx);
-
+      
       return order;
+    },
+    {
+      maxWait: 10000,
+      timeout: 20000
     });
 
     // 11. Payment Gateway Abstraction
