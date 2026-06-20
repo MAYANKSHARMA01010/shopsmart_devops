@@ -108,8 +108,17 @@ async function seedUsers(): Promise<string> {
 
   for (const u of usersToSeed) {
     const existing = await prisma.user.findUnique({ where: { email: u.email } });
+    
     if (existing) {
-      console.log(`✓ User ${u.email} already exists — skipping`);
+      if (existing.role !== u.role) {
+        await prisma.user.update({
+          where: { email: u.email },
+          data: { role: u.role as any },
+        });
+        console.log(`✓ User ${u.email} already exists — updated role to ${u.role}`);
+      } else {
+        console.log(`✓ User ${u.email} already exists — skipping`);
+      }
       if (u.email === 'admin@shopsmart.dev') mainAdminId = existing.id;
       continue;
     }
