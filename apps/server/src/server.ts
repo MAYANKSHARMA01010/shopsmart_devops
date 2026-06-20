@@ -13,6 +13,9 @@ import cartRoutes from './modules/cart/cart.routes';
 import checkoutRoutes from './modules/checkout/checkout.routes';
 import paymentRoutes from './modules/payment/payment.routes';
 import wishlistRoutes from './modules/wishlist/wishlist.routes';
+import orderRoutes from './modules/orders/order.routes';
+import analyticsRoutes from './modules/analytics/analytics.routes';
+import userRoutes from './modules/users/user.routes';
 import { errorHandler, routeNotFoundHandler } from './shared/middleware/errorMiddleware';
 import corsOptions from './shared/config/cors';
 import redis from './shared/utils/redis';
@@ -57,10 +60,10 @@ app.get('/api/v1/health', healthCheckLimiter, async (req: Request, res: Response
   }
 
   try {
-    // Use the shared prisma instance to test the connection
     await prisma.$queryRaw`SELECT 1`;
     dbStatus = 'connected';
-  } catch {
+  } catch (err) {
+    console.error('DB Health Check Error:', err);
     dbStatus = 'error';
   }
 
@@ -85,6 +88,8 @@ try {
   console.warn("Swagger spec could not be loaded. Please ensure docs/api/openapi.yaml exists.");
 }
 
+import addressRoutes from './modules/address/address.routes';
+
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productRoutes);
@@ -93,6 +98,11 @@ app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/checkout', checkoutRoutes);
 app.use('/api/v1/payment', paymentRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/addresses', addressRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/addresses', addressRoutes);
 
 // Error Handling
 app.use(routeNotFoundHandler);

@@ -8,6 +8,10 @@ const redisUrl = process.env.NODE_ENV === 'production'
 const redis = new Redis(redisUrl!, {
   maxRetriesPerRequest: null,
   retryStrategy: (times) => {
+    // Fail fast in test environment
+    if (process.env.NODE_ENV === 'test') {
+      return null;
+    }
     // Stop retrying after 10 attempts
     if (times > 10) {
       logger.warn('Redis reconnection failed after 10 attempts. Continuing without cache.');
