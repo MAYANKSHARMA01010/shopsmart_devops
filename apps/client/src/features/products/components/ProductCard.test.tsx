@@ -41,13 +41,13 @@ describe('ProductCard', () => {
   });
 
   it('renders stock status correctly for in-stock product', () => {
-    render(<ProductCard product={mockProduct as any} onDelete={() => {}} deleting={false} />);
+    render(<ProductCard product={mockProduct as any} onDelete={() => {}} deleting={false} canManage={true} />);
     expect(screen.getByText('10 in stock')).toBeInTheDocument();
   });
 
   it('renders low stock warning when stock < 5', () => {
     render(
-      <ProductCard product={{ ...mockProduct, stock: 3 } as any} onDelete={() => {}} deleting={false} />
+      <ProductCard product={{ ...mockProduct, stock: 3 } as any} onDelete={() => {}} deleting={false} canManage={true} />
     );
     expect(screen.getByText('Low stock — 3 left')).toBeInTheDocument();
   });
